@@ -19,9 +19,12 @@
 #define __LIB_POLICY_H_
 
 #include "drop.h"
+#include "maps.h"
 
 #ifdef POLICY_ENFORCEMENT
-static inline int policy_can_access(void *map, struct __sk_buff *skb, __u32 src_label)
+
+static inline int policy_can_access(void *map, struct __sk_buff *skb, __u32 src_label,
+				    size_t cidr_addr_size, void *cidr_addr)
 {
 #ifdef DROP_ALL
 	return DROP_POLICY;
@@ -29,24 +32,43 @@ static inline int policy_can_access(void *map, struct __sk_buff *skb, __u32 src_
 	struct policy_entry *policy;
 
 	policy = map_lookup_elem(map, &src_label);
-	if (likely(policy)) {
-		/* FIXME: Use per cpu counters */
-		__sync_fetch_and_add(&policy->packets, 1);
-		__sync_fetch_and_add(&policy->bytes, skb->len);
-		return TC_ACT_OK;
+	if (likely(policy))
+		goto policy_allow;
+
+#ifdef CIDR6_INGRESS_MAP
+	// cidr_addr_size is a compile time constant so this should all be inlined neatly.
+	if (cidr_addr_size == sizeof(union v6addr)) {
+		struct bpf_lpm_trie_key6 key = { { 128 }, *(union v6addr *)cidr_addr };
+		policy = map_lookup_elem(&CIDR6_INGRESS_MAP, &key);
+		if (likely(policy))
+			goto policy_allow;
 	}
+#endif
+#ifdef CIDR4_INGRESS_MAP
+	if (cidr_addr_size == sizeof(__be32)) {
+		struct bpf_lpm_trie_key4 key = { { 32 }, *(__be32 *)cidr_addr };
+		policy = map_lookup_elem(&CIDR4_INGRESS_MAP, &key);
+		if (likely(policy))
+			goto policy_allow;
+	}
+#endif
 
 	if (skb->cb[CB_POLICY])
 		goto allow;
 
 	cilium_trace(skb, DBG_POLICY_DENIED, src_label, SECLABEL);
 
-#ifndef IGNORE_DROP
-	return DROP_POLICY;
+#ifdef IGNORE_DROP
+	goto allow;
 #endif
+	return DROP_POLICY;
 
+policy_allow:
+	/* FIXME: Use per cpu counters */
+	__sync_fetch_and_add(&policy->packets, 1);
+	__sync_fetch_and_add(&policy->bytes, skb->len);
 allow:
-	return TC_ACT_OK;
+	return TC_ACT_OK;	
 #endif /* DROP_ALL */
 }
 
@@ -74,7 +96,8 @@ static inline int is_policy_skip(struct __sk_buff *skb)
 
 #else /* POLICY_ENFORCEMENT */
 
-static inline int policy_can_access(void *map, struct __sk_buff *skb, __u32 src_label)
+static inline int policy_can_access(void *map, struct __sk_buff *skb, __u32 src_label,
+				    size_t cidr_addr_size, void *cidr_addr)
 {
 	return TC_ACT_OK;
 }

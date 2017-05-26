@@ -744,9 +744,11 @@ static inline int __inline__ ipv6_policy(struct __sk_buff *skb, int ifindex, __u
 
 #ifdef CONNTRACK_LOCAL
 	ipv6_addr_copy(&tuple.addr, (union v6addr *) &ip6->saddr);
+#define SADDR tuple.addr
 #else
 	ipv6_addr_copy(&tuple.daddr, (union v6addr *) &ip6->daddr);
 	ipv6_addr_copy(&tuple.saddr, (union v6addr *) &ip6->saddr);
+#define SADDR tuple.saddr
 #endif
 	ipv6_addr_copy(&orig_dip, (union v6addr *) &ip6->daddr);
 
@@ -793,7 +795,8 @@ static inline int __inline__ ipv6_policy(struct __sk_buff *skb, int ifindex, __u
 	 * passed through the allowed consumer. */
 	/* FIXME: Add option to disable policy accounting and avoid policy
 	 * lookup if policy accounting is disabled */
-	verdict = policy_can_access(&POLICY_MAP, skb, src_label);
+	verdict = policy_can_access(&POLICY_MAP, skb, src_label, sizeof(SADDR), &SADDR);
+#undef SADDR
 	if (unlikely(ret == CT_NEW)) {
 		if (verdict != TC_ACT_OK)
 			return DROP_POLICY;
@@ -847,9 +850,11 @@ static inline int __inline__ ipv4_policy(struct __sk_buff *skb, int ifindex, __u
 	orig_was_proxy = ip4->saddr == IPV4_GATEWAY;
 #ifdef CONNTRACK_LOCAL
 	tuple.addr = ip4->saddr;
+#define SADDR tuple.addr
 #else
 	tuple.daddr = ip4->daddr;
 	tuple.saddr = ip4->saddr;
+#define SADDR tuple.saddr
 #endif
 	orig_dip = ip4->daddr;
 
@@ -881,7 +886,8 @@ static inline int __inline__ ipv4_policy(struct __sk_buff *skb, int ifindex, __u
 
 	/* Policy lookup is done on every packet to account for packets that
 	 * passed through the allowed consumer. */
-	verdict = policy_can_access(&POLICY_MAP, skb, src_label);
+	verdict = policy_can_access(&POLICY_MAP, skb, src_label, sizeof(SADDR), &SADDR);
+#undef SADDR
 	if (unlikely(ret == CT_NEW)) {
 		if (verdict != TC_ACT_OK)
 			return DROP_POLICY;
