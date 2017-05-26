@@ -88,7 +88,7 @@ var (
                 ],
                 "toCIDR": [
                     {
-                        "ip": "10.0.0.1"
+                        "ip": "10.0.0.1/32"
                     }
                 ]
             }
@@ -129,7 +129,7 @@ func (s *K8sSuite) TestParseThirdParty(c *C) {
 					},
 					ToCIDR: []api.CIDR{
 						{
-							IP: "10.0.0.1",
+							IP: "10.0.0.1/32",
 						},
 					},
 				},
@@ -165,7 +165,7 @@ func (s *K8sSuite) TestParseThirdParty(c *C) {
 				},
 				ToCIDR: []api.CIDR{
 					{
-						IP: "10.0.0.1",
+						IP: "10.0.0.1/32",
 					},
 				},
 			},
