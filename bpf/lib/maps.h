@@ -78,13 +78,12 @@ struct bpf_elf_map __section_maps CALLS_MAP = {
 };
 
 #ifdef POLICY_ENFORCEMENT
-
-#ifdef CIDR6_INGRESS_MAP
 struct bpf_lpm_trie_key6 {
 	struct bpf_lpm_trie_key lpm_key;
 	union v6addr lpm_addr;
 };
 
+#ifdef CIDR6_INGRESS_MAP
 struct bpf_elf_map __section_maps CIDR6_INGRESS_MAP = {
 	.type		= BPF_MAP_TYPE_LPM_TRIE,
 	.size_key	= sizeof(struct bpf_lpm_trie_key6),
@@ -94,14 +93,34 @@ struct bpf_elf_map __section_maps CIDR6_INGRESS_MAP = {
 	.flags		= BPF_F_NO_PREALLOC,
 };
 #endif
+#ifdef CIDR6_EGRESS_MAP
+struct bpf_elf_map __section_maps CIDR6_EGRESS_MAP = {
+	.type		= BPF_MAP_TYPE_LPM_TRIE,
+	.size_key	= sizeof(struct bpf_lpm_trie_key6),
+	.size_value	= sizeof(struct policy_entry),
+	.pinning	= PIN_GLOBAL_NS,
+	.max_elem	= 1024,
+	.flags		= BPF_F_NO_PREALLOC,
+};
+#endif
 
-#ifdef CIDR4_INGRESS_MAP
 struct bpf_lpm_trie_key4 {
 	struct bpf_lpm_trie_key lpm_key;
 	__be32 lpm_addr;
 };
 
+#ifdef CIDR4_INGRESS_MAP
 struct bpf_elf_map __section_maps CIDR4_INGRESS_MAP = {
+	.type		= BPF_MAP_TYPE_LPM_TRIE,
+	.size_key	= sizeof(struct bpf_lpm_trie_key4),
+	.size_value	= sizeof(struct policy_entry),
+	.pinning	= PIN_GLOBAL_NS,
+	.max_elem	= 1024,
+	.flags		= BPF_F_NO_PREALLOC,
+};
+#endif
+#ifdef CIDR4_EGRESS_MAP
+struct bpf_elf_map __section_maps CIDR4_EGRESS_MAP = {
 	.type		= BPF_MAP_TYPE_LPM_TRIE,
 	.size_key	= sizeof(struct bpf_lpm_trie_key4),
 	.size_value	= sizeof(struct policy_entry),

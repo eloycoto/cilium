@@ -309,6 +309,7 @@ skip_service_lookup:
 		return ipv6_local_delivery(skb, l3_off, l4_off, SECLABEL, ip6, tuple->nexthdr);
 	} else {
 #ifdef LXC_NAT46
+	  	/* XXX: Is all NATted egress traffic allowed? */
 		if (unlikely(ipv6_addr_is_mapped(daddr))) {
 			ep_tail_call(skb, CILIUM_CALL_NAT64);
 			return DROP_MISSED_TAIL_CALL;
@@ -317,6 +318,14 @@ skip_service_lookup:
 
 #ifdef ALLOW_TO_WORLD
 		policy_mark_skip(skb);
+#elif defined CIDR6_EGRESS_MAP
+		/* Skip policy on matching egress prefixes. */
+		{
+			struct bpf_lpm_trie_key6 key = { { 128 }, *daddr };
+			struct policy_entry *policy = map_lookup_elem(&CIDR6_EGRESS_MAP, &key);
+			if (likely(policy))
+				policy_mark_skip(skb);
+		}
 #endif
 		goto pass_to_stack;
 	}
@@ -589,6 +598,14 @@ skip_service_lookup:
 	} else {
 #ifdef ALLOW_TO_WORLD
 		policy_mark_skip(skb);
+#elif defined CIDR4_EGRESS_MAP
+		/* Skip policy on matching egress prefixes. */
+		{
+			struct bpf_lpm_trie_key4 key = { { 32 }, orig_dip };
+			struct policy_entry *policy = map_lookup_elem(&CIDR4_EGRESS_MAP, &key);
+			if (likely(policy))
+				policy_mark_skip(skb);
+		}
 #endif
 		goto pass_to_stack;
 	}
