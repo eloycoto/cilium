@@ -330,6 +330,7 @@ func (e *Endpoint) regenerateBPF(owner Owner, prefix string) error {
 				log.Debugf("[%d] Created IPv6 ingress bpf map %s",
 					int(e.ID), e.IPv6IngressMapPathLocked())
 				createdIPv6IngressMap = true
+				e.L3Policy.Ingress.PopulateBPF(e.L3Maps[IPv6Ingress])
 			} else {
 				e.L3Maps.DestroyBpfMap(IPv6Ingress, e.IPv6IngressMapPathLocked())
 				log.Debugf("[%d] Destroyed IPv6 ingress bpf map %s",
@@ -346,6 +347,7 @@ func (e *Endpoint) regenerateBPF(owner Owner, prefix string) error {
 				log.Debugf("[%d] Created IPv4 ingress bpf map %s",
 					int(e.ID), e.IPv4IngressMapPathLocked())
 				createdIPv4IngressMap = true
+				e.L3Policy.Ingress.PopulateBPF(e.L3Maps[IPv4Ingress])
 			} else {
 				e.L3Maps.DestroyBpfMap(IPv4Ingress, e.IPv4IngressMapPathLocked())
 				log.Debugf("[%d] Destroyed IPv4 ingress bpf map %s",

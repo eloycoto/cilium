@@ -19,6 +19,9 @@ import (
 	"net"
 	"strconv"
 	//	"github.com/cilium/cilium/api/v1/models"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/cilium/cilium/pkg/maps/cidrmap"
 )
 
 // L3PolicyMap is a list of CIDR filters indexable by address/prefixlen
@@ -53,6 +56,28 @@ func (m *L3PolicyMap) Insert(cidr string) int {
 	}
 
 	return 0
+}
+
+func (m *L3PolicyMap) PopulateBPF(cidrmap *cidrmap.CIDRMap) error {
+	for key, value := range m.Map {
+		if value.IP.To4() == nil {
+			if cidrmap.AddrSize != 16 {
+				log.Warningf("Skipping IPv6 CIDR %s.", key)
+				continue
+			}
+		} else {
+			if cidrmap.AddrSize != 4 {
+				log.Warningf("Skipping IPv4 CIDR %s.", key)
+				continue
+			}
+		}
+		log.Warningf("Allowing CIDR %s.", key)
+		err := cidrmap.AllowCIDR(value)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (m *L3PolicyMap) GetModel() []string {
