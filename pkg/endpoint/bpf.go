@@ -137,10 +137,14 @@ func (e *Endpoint) writeHeaderfile(prefix string, owner Owner) error {
 		" * IPv4 address: %s\n"+
 		" * Identity: %d\n"+
 		" * PolicyMap: %s\n"+
+		" * IPv6 Ingress Map: %s\n"+
+		" * IPv4 Ingress Map: %s\n"+
 		" * NodeMAC: %s\n"+
 		" */\n\n",
 		e.LXCMAC, e.IPv6.String(), e.IPv4.String(),
 		e.GetIdentity(), path.Base(e.PolicyMapPathLocked()),
+		path.Base(e.IPv6IngressMapPathLocked()),
+		path.Base(e.IPv4IngressMapPathLocked()),
 		e.NodeMAC)
 
 	fw.WriteString("/*\n")
@@ -184,6 +188,14 @@ func (e *Endpoint) writeHeaderfile(prefix string, owner Owner) error {
 		fmt.Fprintf(fw, "#define SECLABEL_NB %#x\n", common.Swab32(invalid.Uint32()))
 	}
 	fmt.Fprintf(fw, "#define POLICY_MAP %s\n", path.Base(e.PolicyMapPathLocked()))
+	if e.L3Policy != nil {
+		if e.L3Policy.Ingress.IPv6Count > 0 {
+			fmt.Fprintf(fw, "#define CIDR6_INGRESS_MAP %s\n", path.Base(e.IPv6IngressMapPathLocked()))
+		}
+		if e.L3Policy.Ingress.IPv4Count > 0 {
+			fmt.Fprintf(fw, "#define CIDR4_INGRESS_MAP %s\n", path.Base(e.IPv4IngressMapPathLocked()))
+		}
+	}
 	fmt.Fprintf(fw, "#define CALLS_MAP %s\n", path.Base(e.CallsMapPathLocked()))
 	if e.Opts.IsEnabled(OptionConntrackLocal) {
 		fmt.Fprintf(fw, "#define CT_MAP_SIZE %s\n", strconv.Itoa(ctmap.MapNumEntriesLocal))
@@ -273,6 +285,8 @@ func (e *Endpoint) regenerateBPF(owner Owner, prefix string) error {
 	// Anything below this point must be reverted upon failure as we are
 	// changing live BPF maps
 	createdPolicyMap := false
+	createdIPv6IngressMap := false
+	createdIPv4IngressMap := false
 	defer func() {
 		if err != nil {
 			if createdPolicyMap {
@@ -284,6 +298,12 @@ func (e *Endpoint) regenerateBPF(owner Owner, prefix string) error {
 
 				os.RemoveAll(e.PolicyMapPathLocked())
 				e.PolicyMap = nil
+			}
+			if createdIPv6IngressMap {
+				e.L3Maps.DestroyBpfMap(IPv6Ingress, e.IPv6IngressMapPathLocked())
+			}
+			if createdIPv4IngressMap {
+				e.L3Maps.DestroyBpfMap(IPv4Ingress, e.IPv4IngressMapPathLocked())
 			}
 		}
 	}()
@@ -298,6 +318,40 @@ func (e *Endpoint) regenerateBPF(owner Owner, prefix string) error {
 	// Only generate & populate policy map if a seclabel and consumer model is set up
 	if e.Consumable != nil {
 		e.Consumable.AddMap(e.PolicyMap)
+	}
+
+	if e.L3Policy != nil {
+		if e.L3Policy.Ingress.IPv6Changed {
+			if e.L3Policy.Ingress.IPv6Count > 0 {
+				err = e.L3Maps.CreateBpfMap(IPv6Ingress, e.IPv6IngressMapPathLocked())
+				if err != nil {
+					return err
+				}
+				log.Debugf("[%d] Created IPv6 ingress bpf map %s",
+					int(e.ID), e.IPv6IngressMapPathLocked())
+				createdIPv6IngressMap = true
+			} else {
+				e.L3Maps.DestroyBpfMap(IPv6Ingress, e.IPv6IngressMapPathLocked())
+				log.Debugf("[%d] Destroyed IPv6 ingress bpf map %s",
+					int(e.ID), e.IPv6IngressMapPathLocked())
+			}
+		}
+
+		if e.L3Policy.Ingress.IPv4Changed {
+			if e.L3Policy.Ingress.IPv4Count > 0 {
+				err = e.L3Maps.CreateBpfMap(IPv4Ingress, e.IPv4IngressMapPathLocked())
+				if err != nil {
+					return err
+				}
+				log.Debugf("[%d] Created IPv4 ingress bpf map %s",
+					int(e.ID), e.IPv4IngressMapPathLocked())
+				createdIPv4IngressMap = true
+			} else {
+				e.L3Maps.DestroyBpfMap(IPv4Ingress, e.IPv4IngressMapPathLocked())
+				log.Debugf("[%d] Destroyed IPv4 ingress bpf map %s",
+					int(e.ID), e.IPv4IngressMapPathLocked())
+			}
+		}
 	}
 
 	libdir := owner.GetBpfDir()

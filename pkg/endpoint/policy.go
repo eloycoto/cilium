@@ -240,12 +240,46 @@ func (e *Endpoint) regenerateConsumable(owner Owner) (bool, error) {
 	return true, nil
 }
 
+// Must be called with endpointsMU held
+func (e *Endpoint) regenerateL3Policy(owner Owner) (bool, error) {
+	c := e.Consumable
+
+	c.Mutex.RLock()
+	ctx := policy.SearchContext{
+		To:    c.LabelList,
+		Trace: policy.TRACE_VERBOSE,
+	}
+	c.Mutex.RUnlock()
+
+	if owner.TracingEnabled() {
+		ctx.Trace = policy.TRACE_ENABLED
+	}
+
+	repo := owner.GetPolicyRepository()
+	repo.Mutex.Lock()
+	newL3policy := repo.ResolveL3Policy(&ctx)
+	repo.Mutex.Unlock()
+
+	e.L3Policy = newL3policy
+
+	// FIXME: Optimize this and only return true if L3 policy changed
+	return true, nil
+}
+
 func (e *Endpoint) regeneratePolicy(owner Owner) (bool, error) {
 	log.Debugf("[%s] Starting regenerate...", e.PolicyID())
 
 	policyChanged, err := e.regenerateConsumable(owner)
 	if err != nil {
 		return false, err
+	}
+
+	l3PolicyChanged, err := e.regenerateL3Policy(owner)
+	if err != nil {
+		return false, err
+	}
+	if l3PolicyChanged {
+		policyChanged = true
 	}
 
 	opts := make(models.ConfigurationMap)

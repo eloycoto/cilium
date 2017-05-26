@@ -15,6 +15,8 @@
 package policy
 
 import (
+	"net"
+
 	"github.com/cilium/cilium/pkg/labels"
 	"github.com/cilium/cilium/pkg/policy/api"
 
@@ -178,6 +180,27 @@ func (ds *PolicyTestSuite) TestL3Policy(c *C) {
 	rule1 := &rule{apiRule1}
 	err = rule1.validate()
 	c.Assert(err, IsNil)
+
+	expected := NewL3Policy()
+	expected.Ingress.Map["10.0.1.0/24"] = net.IPNet{IP: []byte{10, 0, 1, 0}, Mask: []byte{255, 255, 255, 0}}
+	expected.Ingress.IPv4Changed = true
+	expected.Ingress.IPv4Count = 1
+	expected.Ingress.Map["2001:db8::/48"] = net.IPNet{IP: []byte{0x20, 1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, Mask: []byte{255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
+	expected.Ingress.IPv6Changed = true
+	expected.Ingress.IPv6Count = 1
+	expected.Egress.Map["10.1.0.0/16"] = net.IPNet{IP: []byte{10, 1, 0, 0}, Mask: []byte{255, 255, 0, 0}}
+	expected.Egress.IPv4Changed = true
+	expected.Egress.IPv4Count = 1
+	expected.Egress.Map["2001:dbf::/64"] = net.IPNet{IP: []byte{0x20, 1, 0xd, 0xbf, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, Mask: []byte{255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0}}
+	expected.Egress.IPv6Changed = true
+	expected.Egress.IPv6Count = 1
+
+	toBar := &SearchContext{To: labels.ParseLabelArray("bar")}
+	state := traceState{}
+	res := rule1.resolveL3Policy(toBar, &state, NewL3Policy())
+	c.Assert(res, Not(IsNil))
+	c.Assert(*res, DeepEquals, *expected)
+	c.Assert(state.selectedRules, Equals, 1)
 
 	// Must be parsable
 	err = api.Rule{
