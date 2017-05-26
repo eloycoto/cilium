@@ -703,9 +703,19 @@ func (e *Endpoint) IPv6IngressMapPathLocked() string {
 	return mapPath(cidrmap.MapName+"ingress6_", int(e.ID))
 }
 
+// IPv6EgressMapPathLocked returns the path to policy map of endpoint.
+func (e *Endpoint) IPv6EgressMapPathLocked() string {
+	return mapPath(cidrmap.MapName+"egress6_", int(e.ID))
+}
+
 // IPv4IngressMapPathLocked returns the path to policy map of endpoint.
 func (e *Endpoint) IPv4IngressMapPathLocked() string {
 	return mapPath(cidrmap.MapName+"ingress4_", int(e.ID))
+}
+
+// IPv4EgressMapPathLocked returns the path to policy map of endpoint.
+func (e *Endpoint) IPv4EgressMapPathLocked() string {
+	return mapPath(cidrmap.MapName+"egress4_", int(e.ID))
 }
 
 // PolicyGlobalMapPathLocked returns the path to the global policy map.

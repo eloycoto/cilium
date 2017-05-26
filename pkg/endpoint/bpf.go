@@ -138,13 +138,17 @@ func (e *Endpoint) writeHeaderfile(prefix string, owner Owner) error {
 		" * Identity: %d\n"+
 		" * PolicyMap: %s\n"+
 		" * IPv6 Ingress Map: %s\n"+
+		" * IPv6 Egress Map: %s\n"+
 		" * IPv4 Ingress Map: %s\n"+
+		" * IPv4 Egress Map: %s\n"+
 		" * NodeMAC: %s\n"+
 		" */\n\n",
 		e.LXCMAC, e.IPv6.String(), e.IPv4.String(),
 		e.GetIdentity(), path.Base(e.PolicyMapPathLocked()),
 		path.Base(e.IPv6IngressMapPathLocked()),
+		path.Base(e.IPv6EgressMapPathLocked()),
 		path.Base(e.IPv4IngressMapPathLocked()),
+		path.Base(e.IPv4EgressMapPathLocked()),
 		e.NodeMAC)
 
 	fw.WriteString("/*\n")
@@ -192,8 +196,14 @@ func (e *Endpoint) writeHeaderfile(prefix string, owner Owner) error {
 		if e.L3Policy.Ingress.IPv6Count > 0 {
 			fmt.Fprintf(fw, "#define CIDR6_INGRESS_MAP %s\n", path.Base(e.IPv6IngressMapPathLocked()))
 		}
+		if e.L3Policy.Egress.IPv6Count > 0 {
+			fmt.Fprintf(fw, "#define CIDR6_EGRESS_MAP %s\n", path.Base(e.IPv6EgressMapPathLocked()))
+		}
 		if e.L3Policy.Ingress.IPv4Count > 0 {
 			fmt.Fprintf(fw, "#define CIDR4_INGRESS_MAP %s\n", path.Base(e.IPv4IngressMapPathLocked()))
+		}
+		if e.L3Policy.Egress.IPv4Count > 0 {
+			fmt.Fprintf(fw, "#define CIDR4_EGRESS_MAP %s\n", path.Base(e.IPv4EgressMapPathLocked()))
 		}
 	}
 	fmt.Fprintf(fw, "#define CALLS_MAP %s\n", path.Base(e.CallsMapPathLocked()))
@@ -286,7 +296,9 @@ func (e *Endpoint) regenerateBPF(owner Owner, prefix string) error {
 	// changing live BPF maps
 	createdPolicyMap := false
 	createdIPv6IngressMap := false
+	createdIPv6EgressMap := false
 	createdIPv4IngressMap := false
+	createdIPv4EgressMap := false
 	defer func() {
 		if err != nil {
 			if createdPolicyMap {
@@ -302,8 +314,14 @@ func (e *Endpoint) regenerateBPF(owner Owner, prefix string) error {
 			if createdIPv6IngressMap {
 				e.L3Maps.DestroyBpfMap(IPv6Ingress, e.IPv6IngressMapPathLocked())
 			}
+			if createdIPv6EgressMap {
+				e.L3Maps.DestroyBpfMap(IPv6Egress, e.IPv6EgressMapPathLocked())
+			}
 			if createdIPv4IngressMap {
 				e.L3Maps.DestroyBpfMap(IPv4Ingress, e.IPv4IngressMapPathLocked())
+			}
+			if createdIPv4EgressMap {
+				e.L3Maps.DestroyBpfMap(IPv4Egress, e.IPv4EgressMapPathLocked())
 			}
 		}
 	}()
@@ -337,6 +355,22 @@ func (e *Endpoint) regenerateBPF(owner Owner, prefix string) error {
 					int(e.ID), e.IPv6IngressMapPathLocked())
 			}
 		}
+		if e.L3Policy.Egress.IPv6Changed {
+			if e.L3Policy.Egress.IPv6Count > 0 {
+				err = e.L3Maps.CreateBpfMap(IPv6Egress, e.IPv6EgressMapPathLocked())
+				if err != nil {
+					return err
+				}
+				log.Debugf("[%d] Created IPv6 egress bpf map %s",
+					int(e.ID), e.IPv6EgressMapPathLocked())
+				createdIPv6EgressMap = true
+				e.L3Policy.Egress.PopulateBPF(e.L3Maps[IPv6Egress])
+			} else {
+				e.L3Maps.DestroyBpfMap(IPv6Egress, e.IPv6EgressMapPathLocked())
+				log.Debugf("[%d] Destroyed IPv6 egress bpf map %s",
+					int(e.ID), e.IPv6EgressMapPathLocked())
+			}
+		}
 
 		if e.L3Policy.Ingress.IPv4Changed {
 			if e.L3Policy.Ingress.IPv4Count > 0 {
@@ -352,6 +386,22 @@ func (e *Endpoint) regenerateBPF(owner Owner, prefix string) error {
 				e.L3Maps.DestroyBpfMap(IPv4Ingress, e.IPv4IngressMapPathLocked())
 				log.Debugf("[%d] Destroyed IPv4 ingress bpf map %s",
 					int(e.ID), e.IPv4IngressMapPathLocked())
+			}
+		}
+		if e.L3Policy.Egress.IPv4Changed {
+			if e.L3Policy.Egress.IPv4Count > 0 {
+				err = e.L3Maps.CreateBpfMap(IPv4Egress, e.IPv4EgressMapPathLocked())
+				if err != nil {
+					return err
+				}
+				log.Debugf("[%d] Created IPv4 egress bpf map %s",
+					int(e.ID), e.IPv4EgressMapPathLocked())
+				createdIPv4EgressMap = true
+				e.L3Policy.Egress.PopulateBPF(e.L3Maps[IPv4Egress])
+			} else {
+				e.L3Maps.DestroyBpfMap(IPv4Egress, e.IPv4EgressMapPathLocked())
+				log.Debugf("[%d] Destroyed IPv4 egress bpf map %s",
+					int(e.ID), e.IPv4EgressMapPathLocked())
 			}
 		}
 	}
