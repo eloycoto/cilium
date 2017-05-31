@@ -76,7 +76,15 @@ func (d *Daemon) TriggerPolicyUpdates(added []policy.NumericIdentity) {
 		d.invalidateCache()
 	}
 
+	// Still update daemon's policy enforcement flag with a nil endpoint to reflect addition of policies.
+	if len(d.endpoints) == 0 {
+		d.GetPolicyRepository().Mutex.RLock()
+		d.UpdatePolicyEnforcement(nil)
+		d.GetPolicyRepository().Mutex.RUnlock()
+	}
+
 	d.endpointsMU.RLock()
+
 	for k := range d.endpoints {
 		go func(ep *endpoint.Endpoint) {
 			ep.Mutex.RLock()
@@ -114,7 +122,7 @@ func (d *Daemon) UpdatePolicyEnforcement(e *endpoint.Endpoint) bool {
 			d.conf.Opts.Set(endpoint.OptionPolicy, false)
 			return false
 		}
-	} else if d.conf.EnablePolicy == endpoint.DefaultEnforcement && d.conf.IsK8sEnabled() {
+	} else if d.conf.EnablePolicy == endpoint.DefaultEnforcement && d.conf.IsK8sEnabled() && e != nil {
 		// Convert to LabelArray so we can pass to Matches function later.
 		var endpointLabels labels.LabelArray
 		for _, lbl := range e.Consumable.LabelList {
