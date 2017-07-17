@@ -1,0 +1,15 @@
+Source: cilium
+Section: net
+Priority: optional
+Maintainer: Eloy Coto <eloy.coto@gmail.com>
+Build-Depends: debhelper (>= 9), gettext-base
+Standards-Version: ${VERSION}
+Homepage: https://www.cilium.io/
+#Vcs-Git: https://anonscm.debian.org/collab-maint/cilium.git
+#Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/cilium.git
+
+Package: cilium
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>

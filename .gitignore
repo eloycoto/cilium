@@ -32,3 +32,6 @@ coverage-all.html
 *.plist
 
 daemon/bindata.go
+contrib/packaging/ubuntu/cilium
+contrib/packaging/ubuntu/output
+contrib/packaging/ubuntu/version_*

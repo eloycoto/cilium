@@ -1,0 +1,5 @@
+cilium (1.0.0-1) unstable; urgency=medium
+
+  * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
+
+ -- root <root@ubuntu-zesty>  Thu, 06 Jul 2017 19:48:09 +0000

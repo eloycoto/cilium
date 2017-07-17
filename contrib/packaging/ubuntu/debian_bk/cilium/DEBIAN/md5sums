@@ -1,0 +1,7 @@
+c3fbbf8262cffe6ab8cbd31bce0b300a  opt/cni/bin/cilium-cni
+da003b952e9942409348100295b82c4e  usr/bin/cilium
+934fca52e8d643bb6c55a01cef74930d  usr/bin/cilium-agent
+7fcf5e6d71133130276f7f9b1c40b6ac  usr/bin/cilium-docker
+28905d90a83daddf9493024f978b58ec  usr/share/doc/cilium/README.Debian
+0e5d05132f381edf25563afab19eaef6  usr/share/doc/cilium/changelog.Debian.gz
+74f1895f1fccde52d25629a015b8ef93  usr/share/doc/cilium/copyright
