@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-diff="$(find . ! \( -path './vendor' -prune \) ! -samefile ./daemon/bindata.go -type f -name '*.go' -print0 | xargs -0 gofmt -d -l -s )"
+diff=$(git ls-files -z -m --others --exclude "vendor" --exclude "bindata.go" -- "*go" | xargs -0 gofmt -d -l -s)
 
 if [ -n "$diff" ]; then
 	echo "Unformatted Go source code:"
