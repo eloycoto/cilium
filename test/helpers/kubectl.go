@@ -8,12 +8,16 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/asaskevich/govalidator"
 	"k8s.io/client-go/util/jsonpath"
 )
 
 type Kubectl struct {
 	Node *Node
+
+	logCxt *log.Entry
 }
 
 type KubectlRes struct {
@@ -46,14 +50,15 @@ func (res *KubectlRes) Output() *bytes.Buffer {
 
 var timeout = 300 * time.Second
 
-func CreateKubectl(target string) *Kubectl {
+func CreateKubectl(target string, log *log.Entry) *Kubectl {
 	node := CreateNodeFromTarget(target)
 	if node == nil {
 		return nil
 	}
 
 	return &Kubectl{
-		Node: node,
+		Node:   node,
+		logCxt: log,
 	}
 }
 

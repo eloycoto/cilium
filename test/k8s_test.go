@@ -7,11 +7,14 @@ import (
 	"github.com/cilium/cilium/test/helpers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	log "github.com/sirupsen/logrus"
 )
 
 var _ = Describe("K8sPolicyTest", func() {
 
-	kubectl := helpers.CreateKubectl("k8s1")
+	logger := log.WithFields(log.Fields{"test": "K8sPolicyTest"})
+	logger.Info("Starting")
+	kubectl := helpers.CreateKubectl("k8s1", logger)
 	podFilter := "k8s:id=app"
 
 	BeforeEach(func() {
@@ -19,6 +22,7 @@ var _ = Describe("K8sPolicyTest", func() {
 		kubectl.Apply("/vagrant/demo.yaml")
 
 		status, err := kubectl.WaitforPods("kube-system", "-l k8s-app=cilium", 300)
+		logger.Infof("Wait for cilium status='%v' err='%v'", status, err)
 		Expect(status).Should(BeTrue())
 		Expect(err).Should(BeNil())
 
@@ -76,9 +80,7 @@ var _ = Describe("K8sPolicyTest", func() {
 			Expect(err).Should(BeNil())
 
 			kubectl.Apply("/vagrant/demo.yaml")
-			cilium_pod, err = kubectl.GetCiliumPodOnNode("kube-system", "k8s1")
 			//FIXME: This assert should have comment
-			Expect(err).Should(BeNil())
 			stdout, err := kubectl.CiliumExec(cilium_pod, getEndpointFilter(podFilter, "Enabled"))
 			Expect(err).Should(BeNil())
 			Expect(strings.Trim(stdout, "\n")).Should(Equal("4"))
@@ -91,8 +93,6 @@ var _ = Describe("K8sPolicyTest", func() {
 			Expect(err).Should(BeNil())
 
 			kubectl.Apply("/vagrant/demo.yaml")
-			cilium_pod, err = kubectl.GetCiliumPodOnNode("kube-system", "k8s1")
-			Expect(err).Should(BeNil())
 			stdout, err := kubectl.CiliumExec(cilium_pod, getEndpointFilter(podFilter, "Disabled"))
 			Expect(err).Should(BeNil())
 			Expect(strings.Trim(stdout, "\n")).Should(Equal("4"))
