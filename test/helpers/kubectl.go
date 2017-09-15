@@ -135,6 +135,8 @@ func (kubectl *Kubectl) CiliumExec(pod string, cmd string) (string, error) {
 
 	exit := kubectl.Node.Execute(command, stdout, nil)
 	if exit == false {
+		// FIXME: Output here is important.
+		// Return the string is not fired on the assertion :\ Need to check
 		return "", fmt.Errorf("CiliumExec: command '%s' failed", command)
 	}
 	return stdout.String(), nil
@@ -142,7 +144,7 @@ func (kubectl *Kubectl) CiliumExec(pod string, cmd string) (string, error) {
 
 func (kubectl *Kubectl) CiliumImportPolicy(namespace string, filepath string, timeout int) (string, error) {
 	var revision int
-
+	var wait int = 0
 	pods, err := kubectl.GetCiliumPods(namespace)
 	if err != nil {
 		return "", err
@@ -190,8 +192,10 @@ func (kubectl *Kubectl) CiliumImportPolicy(namespace string, filepath string, ti
 			return "", nil
 		}
 		time.Sleep(1 * time.Second)
-		timeout++
+		wait++
 	}
+
+	return "", fmt.Errorf("ImportPolicy error due timeout '%d'", timeout)
 }
 
 func (kubectl *Kubectl) Apply(filepath string) bool {

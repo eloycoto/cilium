@@ -4,10 +4,21 @@ HOST=$(hostname)
 TOKEN="258062.5d84c017c9b2796c"
 CILIUM_CONFIG_DIR="/opt/cilium"
 ETCD_VERSION="v3.1.0"
+NODE=$1
+IP=$2
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 apt-get update
 apt-get install -y curl jq apt-transport-https
+
+cat <<EOF > /etc/hosts
+127.0.0.1       localhost
+::1     localhost ip6-localhost ip6-loopback
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+$IP     $NODE
+EOF
+
 
 cat <<EOF > /etc/apt/sources.list.d/kubernetes.list
 deb http://apt.kubernetes.io/ kubernetes-xenial main
