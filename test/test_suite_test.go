@@ -19,7 +19,7 @@ func init() {
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
 
-	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0755)
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		fmt.Printf("Can't create the log file")
 		os.Exit(1)
