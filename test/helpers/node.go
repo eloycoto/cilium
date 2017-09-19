@@ -6,6 +6,7 @@ import (
 	"os"
 )
 
+//Node struct to have the info for each vagrant box
 type Node struct {
 	sshClient *SSHClient
 	host      string
@@ -13,14 +14,16 @@ type Node struct {
 	env       []string
 }
 
+//CreateNode return a Node
 func CreateNode(host string, port int, user string) *Node {
 	return &Node{
 		host:      host,
 		port:      port,
-		sshClient: GetSSHClient(host, port, user),
+		sshClient: GetSSHclient(host, port, user),
 	}
 }
 
+//CreateNodeFromTarget create node from a ssh-config target
 func CreateNodeFromTarget(target string) *Node {
 	nodes, err := ImportSSHconfig(SSHConfigPath)
 	if err != nil {
@@ -39,6 +42,7 @@ func CreateNodeFromTarget(target string) *Node {
 	}
 }
 
+//Execute execute a command in the node
 func (node *Node) Execute(cmd string, stdout io.Writer, stderr io.Writer) bool {
 	if stdout == nil {
 		stdout = os.Stdout
@@ -55,10 +59,10 @@ func (node *Node) Execute(cmd string, stdout io.Writer, stderr io.Writer) bool {
 		Stderr: stderr,
 	}
 	result, err := node.sshClient.RunCommand(command)
+	stdout.Write(result)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "command run error '%s': %s\n", command.Path, err)
 		return false
 	}
-	stdout.Write(result)
 	return true
 }

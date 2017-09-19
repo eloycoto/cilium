@@ -6,6 +6,7 @@ import (
 	"os/exec"
 )
 
+//Vagrant helper struct
 type Vagrant struct{}
 
 func (vagrant *Vagrant) getPath(prog string) string {
@@ -30,8 +31,8 @@ func (vagrant *Vagrant) getCMD(op string) *exec.Cmd {
 	return cmd
 }
 
+//Create a new vagrant server
 func (vagrant *Vagrant) Create() error {
-
 	cmd := vagrant.getCMD("vagrant up")
 	// FIXME: output to log with proper header
 	// FIXME: Check if the VM is up, if up set reload
@@ -67,6 +68,7 @@ func (vagrant *Vagrant) deleteConfig() error {
 	return nil
 }
 
+//Destroy all the vms
 func (vagrant *Vagrant) Destroy() error {
 
 	cmd := vagrant.getCMD("vagrant destroy -f")
