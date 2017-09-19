@@ -14,6 +14,9 @@ import (
 	"k8s.io/client-go/util/jsonpath"
 )
 
+var timeout = 300 * time.Second
+var basePath = "/vagrant/"
+
 //Kubectl kubectl command helper
 type Kubectl struct {
 	Node *Node
@@ -53,8 +56,6 @@ func (res *KubectlRes) Output() *bytes.Buffer {
 	return res.stdout
 }
 
-var timeout = 300 * time.Second
-
 //CreateKubectl  Create a new Kubectl helper with a proper log
 func CreateKubectl(target string, log *log.Entry) *Kubectl {
 	node := CreateNodeFromTarget(target)
@@ -65,6 +66,38 @@ func CreateKubectl(target string, log *log.Entry) *Kubectl {
 	return &Kubectl{
 		Node:   node,
 		logCxt: log,
+	}
+}
+
+func (kubectl *Kubectl) Exec(namespace string, pod string, cmd string) (string, error) {
+	command := fmt.Sprintf("kubectl exec -n %s %s -- %s", namespace, pod, cmd)
+	stdout := new(bytes.Buffer)
+
+	exit := kubectl.Node.Execute(command, stdout, nil)
+	if exit == false {
+		// FIXME: Output here is important.
+		// Return the string is not fired on the assertion :\ Need to check
+		kubectl.logCxt.Infof(
+			"Exec command failed '%s' pod='%s' erro='%s'",
+			cmd, pod, stdout.String())
+		return "", fmt.Errorf("Exec: command '%s' failed '%s'", command, stdout.String())
+	}
+	return stdout.String(), nil
+}
+
+func (kubectl *Kubectl) Get(namespace string, command string) *KubectlRes {
+	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
+
+	exit := kubectl.Node.Execute(
+		fmt.Sprintf("kubectl -n %s get %s -o json", namespace, command),
+		stdout, stderr)
+
+	return &KubectlRes{
+		cmd:    "",
+		stdout: stdout,
+		stderr: stderr,
+		exit:   exit,
 	}
 }
 
@@ -105,24 +138,8 @@ func (kubectl *Kubectl) GetPodsNames(namespace string, label string) ([]string, 
 	return strings.Split(out, " "), nil
 }
 
-//GetCiliumPodOnNode Returns cilium pod name that is running on specific node
-func (kubectl *Kubectl) GetCiliumPodOnNode(namespace string, node string) (string, error) {
-
-	stdout := new(bytes.Buffer)
-	filter := fmt.Sprintf(
-		"-o jsonpath='{.items[?(@.spec.nodeName == \"%s\")].metadata.name}'", node)
-	exit := kubectl.Node.Execute(
-		fmt.Sprintf("kubectl -n %s get pods -l k8s-app=cilium %s", namespace, filter),
-		stdout, nil)
-	if exit == false {
-		return "", fmt.Errorf("Cilium pod not found on node '%s'", node)
-	}
-	return stdout.String(), nil
-}
-
-//GetCiliumPods return all cilium pods
-func (kubectl *Kubectl) GetCiliumPods(namespace string) ([]string, error) {
-	return kubectl.GetPodsNames(namespace, "k8s-app=cilium")
+func (kubectl *Kubectl) ManifestsPath() string {
+	return fmt.Sprintf("%s/k8sT/manifests/%s", basePath, "1.7")
 }
 
 //WaitforPods wait during timeout to get a pod ready
@@ -156,6 +173,23 @@ func (kubectl *Kubectl) WaitforPods(namespace string, filter string, timeout int
 	return false, nil
 }
 
+//Apply a new manifest using kubectl
+func (kubectl *Kubectl) Apply(filepath string) bool {
+	return kubectl.Node.Execute(
+		fmt.Sprintf("kubectl apply -f  %s", filepath), nil, nil)
+}
+
+//Delete a manifest using kubectl
+func (kubectl *Kubectl) Delete(filepath string) bool {
+	return kubectl.Node.Execute(
+		fmt.Sprintf("kubectl delete -f  %s", filepath), nil, nil)
+}
+
+//GetCiliumPods return all cilium pods
+func (kubectl *Kubectl) GetCiliumPods(namespace string) ([]string, error) {
+	return kubectl.GetPodsNames(namespace, "k8s-app=cilium")
+}
+
 //CiliumExec run command into a cilium pod
 func (kubectl *Kubectl) CiliumExec(pod string, cmd string) (string, error) {
 	command := fmt.Sprintf("kubectl exec -n kube-system %s -- %s", pod, cmd)
@@ -165,7 +199,7 @@ func (kubectl *Kubectl) CiliumExec(pod string, cmd string) (string, error) {
 	if exit == false {
 		// FIXME: Output here is important.
 		// Return the string is not fired on the assertion :\ Need to check
-		kubectl.logCxt.Info(
+		kubectl.logCxt.Infof(
 			"CiliumExec command failed '%s' pod='%s' erro='%s'",
 			cmd, pod, stdout.String())
 		return "", fmt.Errorf("CiliumExec: command '%s' failed '%s'", command, stdout.String())
@@ -230,14 +264,17 @@ func (kubectl *Kubectl) CiliumImportPolicy(namespace string, filepath string, ti
 	return "", fmt.Errorf("ImportPolicy error due timeout '%d'", timeout)
 }
 
-//Apply a new manifest using kubectl
-func (kubectl *Kubectl) Apply(filepath string) bool {
-	return kubectl.Node.Execute(
-		fmt.Sprintf("kubectl apply -f  %s", filepath), nil, nil)
-}
+//GetCiliumPodOnNode Returns cilium pod name that is running on specific node
+func (kubectl *Kubectl) GetCiliumPodOnNode(namespace string, node string) (string, error) {
 
-//Delete a manifest using kubectl
-func (kubectl *Kubectl) Delete(filepath string) bool {
-	return kubectl.Node.Execute(
-		fmt.Sprintf("kubectl delete -f  %s", filepath), nil, nil)
+	stdout := new(bytes.Buffer)
+	filter := fmt.Sprintf(
+		"-o jsonpath='{.items[?(@.spec.nodeName == \"%s\")].metadata.name}'", node)
+	exit := kubectl.Node.Execute(
+		fmt.Sprintf("kubectl -n %s get pods -l k8s-app=cilium %s", namespace, filter),
+		stdout, nil)
+	if exit == false {
+		return "", fmt.Errorf("Cilium pod not found on node '%s'", node)
+	}
+	return stdout.String(), nil
 }

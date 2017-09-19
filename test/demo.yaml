@@ -33,8 +33,6 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: app2
-  labels:
-    zgroup: testapp
 spec:
   replicas: 1
   template:
@@ -70,5 +68,7 @@ spec:
         command: [ "sleep" ]
         args:
           - "1000h"
+        ports:
+        - containerPort: 80
       nodeSelector:
         "kubernetes.io/hostname": k8s1
