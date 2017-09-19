@@ -126,7 +126,7 @@ spec:
             command:
             - cilium
             - status
-          initialDelaySeconds: 180
+          initialDelaySeconds: 30
           failureThreshold: 10
           periodSeconds: 10
         readinessProbe:
@@ -134,7 +134,7 @@ spec:
             command:
             - cilium
             - status
-          initialDelaySeconds: 180
+          initialDelaySeconds: 30
           periodSeconds: 15
         volumeMounts:
           - name: bpf-maps

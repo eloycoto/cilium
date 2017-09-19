@@ -19,6 +19,7 @@ spec:
     metadata:
       labels:
         id: app1
+        zgroup: testapp
     spec:
       containers:
       - name: web
@@ -32,12 +33,15 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: app2
+  labels:
+    zgroup: testapp
 spec:
   replicas: 1
   template:
     metadata:
       labels:
         id: app2
+        zgroup: testapp
     spec:
       containers:
       - name: app-frontend
@@ -58,6 +62,7 @@ spec:
     metadata:
       labels:
         id: app3
+        zgroup: testapp
     spec:
       containers:
       - name: app-frontend
