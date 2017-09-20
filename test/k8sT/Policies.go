@@ -13,20 +13,33 @@ import (
 )
 
 var _ = Describe("K8sPolicyTest", func() {
+	var kubectl *helpers.Kubectl
+	var podFilter string
+	var logger *log.Entry
+	var initilized bool
 
-	logger := log.WithFields(log.Fields{"test": "K8sPolicyTest"})
+	initilize := func() {
+		if initilized == true {
+			return
+		}
+		logger = log.WithFields(log.Fields{"test": "K8sPolicyTest"})
 
-	logger.Info("Starting")
-	kubectl := helpers.CreateKubectl("k8s1", logger)
-	podFilter := "k8s:id=app"
+		logger.Info("Starting")
+		kubectl = helpers.CreateKubectl("k8s1", logger)
+		podFilter = "k8s:id=app"
 
-	//FIXME: BeforeAll function here.
-	kubectl.Apply("/vagrant/cilium-ds.yaml")
-	status, err := kubectl.WaitforPods("kube-system", "-l k8s-app=cilium", 300)
+		//FIXME: BeforeAll function here.
+		kubectl.Apply("/vagrant/cilium-ds.yaml")
+		status, err := kubectl.WaitforPods("kube-system", "-l k8s-app=cilium", 300)
+		Expect(status).Should(BeTrue())
+		Expect(err).Should(BeNil())
+		initilized = true
+	}
 
 	BeforeEach(func() {
+		initilize()
 		kubectl.Apply("/vagrant/demo.yaml")
-		status, err = kubectl.WaitforPods("default", "-l zgroup=testapp", 300)
+		_, err := kubectl.WaitforPods("default", "-l zgroup=testapp", 300)
 		Expect(err).Should(BeNil())
 
 	})
@@ -172,7 +185,7 @@ var _ = Describe("K8sPolicyTest", func() {
 		Expect(err).Should(BeNil())
 		Expect(out).Should(ContainSubstring("Result: DENIED"))
 
-		status = kubectl.Delete(
+		status := kubectl.Delete(
 			fmt.Sprintf("%s/l3_l4_policy.yaml", kubectl.ManifestsPath()))
 
 		By("Testing L7 rules")

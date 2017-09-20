@@ -13,7 +13,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var DefaultSettings map[string]string = map[string]string{
+	"K8S_VERSION": "1.7",
+}
+
 func init() {
+
 	var filename string = "test.log"
 
 	log.SetOutput(os.Stdout)
@@ -25,6 +30,10 @@ func init() {
 		os.Exit(1)
 	}
 	log.SetOutput(f)
+
+	for k, v := range DefaultSettings {
+		getOrSetEnvVar(k, v)
+	}
 }
 
 func TestTest(t *testing.T) {
@@ -45,3 +54,10 @@ var _ = AfterSuite(func() {
 	// This runs when all the test finished
 	// vagrant.Destroy()
 })
+
+func getOrSetEnvVar(key, value string) {
+	if val := os.Getenv(key); val == "" {
+		log.Infof("Init: Env var '%s' was not set, set default value '%s'", key, value)
+		os.Setenv(key, value)
+	}
+}
