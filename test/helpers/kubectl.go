@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +17,9 @@ import (
 
 var timeout = 300 * time.Second
 var basePath = "/vagrant/"
+
+//Return the value of the K8S_VERSION
+func GetCurrentK8SEnv() string { return os.Getenv("K8S_VERSION") }
 
 //Kubectl kubectl command helper
 type Kubectl struct {
@@ -58,7 +62,9 @@ func (res *KubectlRes) Output() *bytes.Buffer {
 
 //CreateKubectl  Create a new Kubectl helper with a proper log
 func CreateKubectl(target string, log *log.Entry) *Kubectl {
-	node := CreateNodeFromTarget(target)
+	versionTarget := fmt.Sprintf("%s-%s", target, GetCurrentK8SEnv())
+	log.Infof("Kubectl: Set target to '%s'", versionTarget)
+	node := CreateNodeFromTarget(versionTarget)
 	if node == nil {
 		return nil
 	}

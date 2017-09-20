@@ -2,6 +2,7 @@ package k8sT
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cilium/cilium/test/helpers"
@@ -12,13 +13,28 @@ import (
 )
 
 var _ = Describe("K8sTunnelTest", func() {
-	logger := log.WithFields(log.Fields{"test": "K8sTunnelTest"})
-	logger.Info("Starting")
 
-	kubectl := helpers.CreateKubectl("k8s1", logger)
-	demoDSPath := fmt.Sprintf("%s/demo_ds.yaml", kubectl.ManifestsPath())
+	var kubectl *helpers.Kubectl
+	var demoDSPath string
+	var logger *log.Entry
+	var initilized bool
+
+	initilize := func() {
+		if initilized == true {
+			return
+		}
+
+		logger = log.WithFields(log.Fields{"test": "K8sTunnelTest"})
+		logger.Info("Starting")
+
+		kubectl = helpers.CreateKubectl("k8s1", logger)
+		demoDSPath = fmt.Sprintf("%s/demo_ds.yaml", kubectl.ManifestsPath())
+		initilized = true
+	}
 
 	BeforeEach(func() {
+		initilize()
+		//We use a DaemonSet to ensure that all the pods are in different node
 		kubectl.Apply(demoDSPath)
 	})
 
@@ -32,11 +48,19 @@ var _ = Describe("K8sTunnelTest", func() {
 		_, err := kubectl.WaitforPods("kube-system", "-l k8s-app=cilium", 300)
 		Expect(err).Should(BeNil())
 
-		//FIXME: Maybe added here a cilium bpf tunnel status?
+		ciliumPod, err := kubectl.GetCiliumPodOnNode("kube-system", "k8s1")
+		Expect(err).Should(BeNil())
+
+		//Check that cilium detects a
+		By("Checking that BPF tunnels are in place")
+		tunnelList, err := kubectl.CiliumExec(ciliumPod, "cilium bpf tunnel list | wc -l")
+		Expect(err).Should(BeNil())
+		Expect(strings.Trim(tunnelList, "\n")).Should(Equal("3"))
+
+		By("Checking that BPF tunnels are working correctly")
 		tunnStatus := isNodeNetworkingWorking(kubectl, "zgroup=testDS")
 		Expect(tunnStatus).Should(BeTrue())
 		kubectl.Delete(path)
-
 		var status int = 1
 		for status > 0 {
 			pods, err := kubectl.GetCiliumPods("kube-system")
@@ -50,11 +74,21 @@ var _ = Describe("K8sTunnelTest", func() {
 	}, 600)
 
 	FIt("Check Geneve mode", func() {
-		path := fmt.Sprintf("%s/cilium_geneve.yaml", kubectl.ManifestsPath())
+		path := fmt.Sprintf("%s/cilium_ds_geneve.yaml", kubectl.ManifestsPath())
 		kubectl.Apply(path)
 		_, err := kubectl.WaitforPods("kube-system", "-l k8s-app=cilium", 300)
 		Expect(err).Should(BeNil())
 
+		ciliumPod, err := kubectl.GetCiliumPodOnNode("kube-system", "k8s1")
+		Expect(err).Should(BeNil())
+
+		//Check that cilium detects a
+		By("Checking that BPF tunnels are in place")
+		tunnelList, err := kubectl.CiliumExec(ciliumPod, "cilium bpf tunnel list | wc -l")
+		Expect(err).Should(BeNil())
+		Expect(strings.Trim(tunnelList, "\n")).Should(Equal("3"))
+
+		By("Checking that BPF tunnels are working correctly")
 		tunnStatus := isNodeNetworkingWorking(kubectl, "zgroup=testDS")
 		Expect(tunnStatus).Should(BeTrue())
 		//FIXME: Maybe added here a cilium bpf tunnel status?

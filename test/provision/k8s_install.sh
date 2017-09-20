@@ -6,10 +6,11 @@ CILIUM_CONFIG_DIR="/opt/cilium"
 ETCD_VERSION="v3.1.0"
 NODE=$1
 IP=$2
+K8S_VERSION=$3
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 apt-get update
-apt-get install -y curl jq apt-transport-https
+apt-get install -y curl jq apt-transport-https htop bmon
 
 cat <<EOF > /etc/hosts
 127.0.0.1       localhost
@@ -30,7 +31,10 @@ curl -sSL https://get.docker.com/ | sh
 systemctl start docker
 
 apt-get install --allow-downgrades -y \
-    kubelet kubeadm kubectl kubernetes-cni htop bmon
+    kubelet="${K8S_VERSION}*" \
+    kubeadm="${K8S_VERSION}*" \
+    kubectl="${K8S_VERSION}*" \
+    kubernetes-cni htop bmon
 
 sudo mkdir -p ${CILIUM_CONFIG_DIR}
 
