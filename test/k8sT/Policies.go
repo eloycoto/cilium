@@ -13,10 +13,13 @@ import (
 )
 
 var _ = Describe("K8sPolicyTest", func() {
-	var kubectl *helpers.Kubectl
-	var podFilter string
-	var logger *log.Entry
+
+	var demoPath string
 	var initilized bool
+	var kubectl *helpers.Kubectl
+	var logger *log.Entry
+	var podFilter string
+	var l3Policy, l7Policy string
 
 	initilize := func() {
 		if initilized == true {
@@ -28,8 +31,13 @@ var _ = Describe("K8sPolicyTest", func() {
 		kubectl = helpers.CreateKubectl("k8s1", logger)
 		podFilter = "k8s:id=app"
 
-		//FIXME: BeforeAll function here.
-		kubectl.Apply("/vagrant/cilium-ds.yaml")
+		//Manifest paths
+		demoPath = fmt.Sprintf("%s/demo.yaml", kubectl.ManifestsPath())
+		l3Policy = fmt.Sprintf("%s/l3_l4_policy.yaml", kubectl.ManifestsPath())
+		l7Policy = fmt.Sprintf("%s/l7_policy.yaml", kubectl.ManifestsPath())
+
+		path := fmt.Sprintf("%s/cilium_ds.yaml", kubectl.ManifestsPath())
+		kubectl.Apply(path)
 		status, err := kubectl.WaitforPods("kube-system", "-l k8s-app=cilium", 300)
 		Expect(status).Should(BeTrue())
 		Expect(err).Should(BeNil())
@@ -38,7 +46,7 @@ var _ = Describe("K8sPolicyTest", func() {
 
 	BeforeEach(func() {
 		initilize()
-		kubectl.Apply("/vagrant/demo.yaml")
+		kubectl.Apply(demoPath)
 		_, err := kubectl.WaitforPods("default", "-l zgroup=testapp", 300)
 		Expect(err).Should(BeNil())
 
@@ -46,7 +54,7 @@ var _ = Describe("K8sPolicyTest", func() {
 
 	AfterEach(func() {
 		return
-		kubectl.Delete("/vagrant/demo.yaml")
+		kubectl.Delete(demoPath)
 		var status int = 1
 		for status > 0 {
 			pods, err := kubectl.GetPodsNames("default", "zgroup=testapp")
@@ -71,7 +79,7 @@ var _ = Describe("K8sPolicyTest", func() {
 
 		By("DefaultMode with l3l4 policy")
 		// Set two nodes with policy enforcement
-		_, err = kubectl.CiliumImportPolicy("kube-system", "/vagrant/l3_l4_policy.yaml", 300)
+		_, err = kubectl.CiliumImportPolicy("kube-system", l3Policy, 300)
 		Expect(err).Should(BeNil())
 
 		waitForEndpointsSync(kubectl)
@@ -86,7 +94,7 @@ var _ = Describe("K8sPolicyTest", func() {
 
 		By("Deleting l3/l4 policy")
 		// Delete the policy enforcement for the nodes. All 4 should be disabled
-		status := kubectl.Delete("/vagrant/l3_l4_policy.yaml")
+		status := kubectl.Delete(l3Policy)
 		Expect(status).Should(BeTrue())
 
 		waitForEndpointsSync(kubectl)
@@ -129,8 +137,9 @@ var _ = Describe("K8sPolicyTest", func() {
 
 		By("Test Polivy when PolicyEnforcement is disabled")
 		// Test to import a policy when it is disabled
-		status := kubectl.Apply("/vagrant/l3_l4_policy.yaml")
-		Expect(status).Should(BeTrue())
+
+		_, err = kubectl.CiliumImportPolicy("kube-system", l3Policy, 300)
+		Expect(err).Should(BeNil())
 
 		waitForEndpointsSync(kubectl)
 		// Test to convert to enable all the endpoints
@@ -141,6 +150,10 @@ var _ = Describe("K8sPolicyTest", func() {
 		stdout, err = kubectl.CiliumExec(ciliumPod, getEndpointFilter(podFilter, "Enabled"))
 		Expect(err).Should(BeNil())
 		Expect(strings.Trim(stdout, "\n")).Should(Equal("4"))
+
+		status := kubectl.Delete(l3Policy)
+		Expect(status).Should(BeTrue())
+		waitForEndpointsSync(kubectl)
 	})
 
 	It("Tests Policy Rules", func() {
@@ -161,8 +174,8 @@ var _ = Describe("K8sPolicyTest", func() {
 		Expect(err).Should(BeNil())
 
 		By("Testing L3/L4 rules")
-		_, err = kubectl.CiliumImportPolicy(
-			"kube-system", fmt.Sprintf("%s/l3_l4_policy.yaml", kubectl.ManifestsPath()), 100)
+
+		_, err = kubectl.CiliumImportPolicy("kube-system", l3Policy, 300)
 		Expect(err).Should(BeNil())
 
 		_, err = kubectl.Exec(
@@ -185,13 +198,14 @@ var _ = Describe("K8sPolicyTest", func() {
 		Expect(err).Should(BeNil())
 		Expect(out).Should(ContainSubstring("Result: DENIED"))
 
-		status := kubectl.Delete(
-			fmt.Sprintf("%s/l3_l4_policy.yaml", kubectl.ManifestsPath()))
+		status := kubectl.Delete(l3Policy)
+		Expect(status).Should(BeTrue())
+		waitForEndpointsSync(kubectl)
 
 		By("Testing L7 rules")
-		_, err = kubectl.CiliumImportPolicy(
-			"kube-system", fmt.Sprintf("%s/l7_policy.yaml", kubectl.ManifestsPath()), 100)
-		Expect(status).Should(BeTrue())
+
+		_, err = kubectl.CiliumImportPolicy("kube-system", l7Policy, 300)
+		Expect(err).Should(BeNil())
 
 		_, err = kubectl.Exec(
 			"default", appPods["app2"], fmt.Sprintf("curl http://%s/public", clusterIP))
@@ -208,6 +222,10 @@ var _ = Describe("K8sPolicyTest", func() {
 		_, err = kubectl.Exec(
 			"default", appPods["app3"], fmt.Sprintf("curl http://%s/private", clusterIP))
 		Expect(err).Should(HaveOccurred())
+
+		status = kubectl.Delete(l7Policy)
+		Expect(status).Should(BeTrue())
+		waitForEndpointsSync(kubectl)
 	})
 
 })
