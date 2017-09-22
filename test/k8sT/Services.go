@@ -57,4 +57,6 @@ var _ = Describe("K8sTunnelTest", func() {
 
 	//FIXME: Check service with IPV6
 	//FIXME: Check the service with cross-node
+	//FIXME: NodePort? It is ready?
+
 })

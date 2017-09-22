@@ -5,6 +5,7 @@ import (
 	"os"
 
 	. "github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/reporters"
 	. "github.com/onsi/gomega"
 
 	"testing"
@@ -38,7 +39,8 @@ func init() {
 
 func TestTest(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Cilium Test")
+	junitReporter := reporters.NewJUnitReporter("junit.xml")
+	RunSpecsWithDefaultAndCustomReporters(t, "Cilium Test Suite", []Reporter{junitReporter})
 }
 
 var vagrant helpers.Vagrant
