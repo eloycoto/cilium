@@ -1,10 +1,13 @@
 package helpers
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 //Vagrant helper struct
@@ -21,13 +24,24 @@ func (vagrant *Vagrant) Create() error {
 		}
 	}
 	cmd := vagrant.getCMD(createCMD)
-	// FIXME: output to log with proper header
-	out, err := cmd.CombinedOutput()
-	fmt.Printf("%s", out)
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
 	}
 
+	if err := cmd.Start(); err != nil {
+		log.Errorf("Create error on start command='%s' error=%s", createCMD, err)
+		return err
+	}
+
+	in := bufio.NewScanner(stdout)
+	for in.Scan() {
+		log.Infof(in.Text()) // write each line to your log, or anything you need
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return err
+	}
 	err = vagrant.createConfig()
 	if err != nil {
 		return err
