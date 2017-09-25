@@ -107,6 +107,8 @@ var _ = Describe("K8sTunnelTest", func() {
 })
 
 func isNodeNetworkingWorking(kubectl *helpers.Kubectl, filter string) bool {
+	waitReady, _ := kubectl.WaitforPods("default", fmt.Sprintf("-l %s", filter), 120)
+	Expect(waitReady).Should(BeTrue())
 	pods, err := kubectl.GetPodsNames("default", filter)
 	Expect(err).Should(BeNil())
 	podIP, err := kubectl.Get(
