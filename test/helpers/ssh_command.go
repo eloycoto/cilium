@@ -31,6 +31,7 @@ type SSHClient struct {
 	Config *ssh.ClientConfig
 	Host   string
 	Port   int
+	client *ssh.Client
 }
 
 //SSHConfig parser
@@ -122,12 +123,21 @@ func (client *SSHClient) RunCommand(cmd *SSHCommand) ([]byte, error) {
 }
 
 func (client *SSHClient) newSession() (*ssh.Session, error) {
-	connection, err := ssh.Dial(
-		"tcp",
-		fmt.Sprintf("%s:%d", client.Host, client.Port),
-		client.Config)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to dial: %s", err)
+	var connection *ssh.Client
+	var err error
+
+	if client.client != nil {
+		connection = client.client
+	} else {
+		connection, err = ssh.Dial(
+			"tcp",
+			fmt.Sprintf("%s:%d", client.Host, client.Port),
+			client.Config)
+
+		if err != nil {
+			return nil, fmt.Errorf("Failed to dial: %s", err)
+		}
+		client.client = connection
 	}
 
 	session, err := connection.NewSession()
