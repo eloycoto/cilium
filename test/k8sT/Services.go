@@ -5,6 +5,7 @@ import (
 
 	"github.com/asaskevich/govalidator"
 	"github.com/cilium/cilium/test/helpers"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -17,7 +18,6 @@ var _ = Describe("K8sTunnelTest", func() {
 	var logger *log.Entry
 	var initilized bool
 	var serviceName string = "app1-service"
-
 	initilize := func() {
 		if initilized == true {
 			return
