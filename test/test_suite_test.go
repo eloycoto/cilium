@@ -48,7 +48,9 @@ var vagrant helpers.Vagrant
 var _ = BeforeSuite(func() {
 	// This runs when the tests start, before all test
 	log.Info("Running Before suite flag")
+	fmt.Printf("Before Suite, provision a new servers \n")
 	vagrant.Create()
+	fmt.Printf("Before Suite finished")
 	return
 })
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/asaskevich/govalidator"
+	"github.com/cilium/cilium/test/ginkgo-ext"
 	"github.com/cilium/cilium/test/helpers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -17,9 +18,16 @@ var _ = Describe("K8sPolicyTest", func() {
 	var demoPath string
 	var initilized bool
 	var kubectl *helpers.Kubectl
-	var logger *log.Entry
-	var podFilter string
 	var l3Policy, l7Policy string
+	var logger *log.Entry
+	var path string
+	var podFilter string
+
+	afterAll := &ginkgoext.AfterAll{
+		Body: func() {
+			kubectl.Delete(path)
+		},
+	}
 
 	initilize := func() {
 		if initilized == true {
@@ -36,7 +44,7 @@ var _ = Describe("K8sPolicyTest", func() {
 		l3Policy = fmt.Sprintf("%s/l3_l4_policy.yaml", kubectl.ManifestsPath())
 		l7Policy = fmt.Sprintf("%s/l7_policy.yaml", kubectl.ManifestsPath())
 
-		path := fmt.Sprintf("%s/cilium_ds.yaml", kubectl.ManifestsPath())
+		path = fmt.Sprintf("%s/cilium_ds.yaml", kubectl.ManifestsPath())
 		kubectl.Apply(path)
 		status, err := kubectl.WaitforPods("kube-system", "-l k8s-app=cilium", 300)
 		Expect(status).Should(BeTrue())
@@ -53,7 +61,6 @@ var _ = Describe("K8sPolicyTest", func() {
 	})
 
 	AfterEach(func() {
-		return
 		kubectl.Delete(demoPath)
 		var status int = 1
 		for status > 0 {
@@ -65,9 +72,9 @@ var _ = Describe("K8sPolicyTest", func() {
 			}
 			time.Sleep(1 * time.Second)
 		}
-	}, 30)
+	}, 120)
 
-	It("Policyenforcment default", func() {
+	ginkgoext.It("Policyenforcment default", func() {
 		logger := logger.WithField("type", "default")
 		logger.Info("PolicyEnforcement default")
 		By("Testing all nodes are disabled by default")
@@ -103,9 +110,9 @@ var _ = Describe("K8sPolicyTest", func() {
 		stdout, err = kubectl.CiliumExec(ciliumPod, getEndpointFilter(podFilter, "Disabled"))
 		Expect(err).Should(BeNil())
 		Expect(strings.Trim(stdout, "\n")).Should(Equal("4"))
-	})
+	}, afterAll)
 
-	It("PolicyEnforcment set to always", func() {
+	ginkgoext.It("PolicyEnforcment set to always", func() {
 		By("set policyenforcement to always")
 		ciliumPod, err := kubectl.GetCiliumPodOnNode("kube-system", "k8s1")
 		Expect(err).Should(BeNil())
@@ -120,9 +127,9 @@ var _ = Describe("K8sPolicyTest", func() {
 		Expect(strings.Trim(stdout, "\n")).Should(Equal("4"))
 
 		//FIXME: Check here that doesn't have access
-	})
+	}, afterAll)
 
-	It("PolicyEnforcment set to never", func() {
+	ginkgoext.It("PolicyEnforcment set to never", func() {
 		ciliumPod, err := kubectl.GetCiliumPodOnNode("kube-system", "k8s1")
 		Expect(err).Should(BeNil())
 		_, err = kubectl.CiliumExec(ciliumPod, "cilium config PolicyEnforcement=never")
@@ -154,9 +161,9 @@ var _ = Describe("K8sPolicyTest", func() {
 		status := kubectl.Delete(l3Policy)
 		Expect(status).Should(BeTrue())
 		waitForEndpointsSync(kubectl)
-	})
+	}, afterAll)
 
-	It("Tests Policy Rules", func() {
+	ginkgoext.It("Tests Policy Rules", func() {
 		appPods := make(map[string]string)
 		apps := []string{"app1", "app2", "app3"}
 		for _, v := range apps {
@@ -226,8 +233,7 @@ var _ = Describe("K8sPolicyTest", func() {
 		status = kubectl.Delete(l7Policy)
 		Expect(status).Should(BeTrue())
 		waitForEndpointsSync(kubectl)
-	})
-
+	}, afterAll)
 })
 
 func getEndpointFilter(filter string, status string) string {
