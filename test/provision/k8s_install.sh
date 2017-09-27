@@ -26,7 +26,9 @@ cat <<EOF > /etc/apt/sources.list.d/kubernetes.list
 deb http://apt.kubernetes.io/ kubernetes-xenial main
 EOF
 
-curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+sudo rm /var/lib/apt/lists/lock
+wget https://packages.cloud.google.com/apt/doc/apt-key.gpg
+apt-key add apt-key.gpg
 
 apt-get update
 apt-get install --allow-downgrades -y \
@@ -40,6 +42,7 @@ apt-get install --allow-downgrades -y \
 sudo mkdir -p ${CILIUM_CONFIG_DIR}
 
 sudo mount bpffs /sys/fs/bpf -t bpf
+sudo rm -rfv /var/lib/kubelet
 
 #check hostname to know if is kubernetes or runtime test
 if [[ "${HOST}" == "k8s1" ]]; then
@@ -63,6 +66,7 @@ else
     kubeadm join --token=$TOKEN 192.168.36.11:6443
     cp /etc/kubernetes/kubelet.conf ${CILIUM_CONFIG_DIR}/kubeconfig
     sudo systemctl stop etcd
+    docker pull 192.168.36.11:5000/cilium/cilium-dev:latest
 fi
 
 sudo touch /etc/provision_finished

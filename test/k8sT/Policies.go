@@ -13,7 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var _ = Describe("K8sPolicyTest", func() {
+var _ = XDescribe("K8sPolicyTest", func() {
 
 	var demoPath string
 	var initilized bool
@@ -22,7 +22,6 @@ var _ = Describe("K8sPolicyTest", func() {
 	var logger *log.Entry
 	var path string
 	var podFilter string
-
 	afterAll := &ginkgoext.AfterAll{
 		Body: func() {
 			kubectl.Delete(path)

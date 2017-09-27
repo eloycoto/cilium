@@ -20,17 +20,17 @@ var DefaultSettings map[string]string = map[string]string{
 
 func init() {
 
-	var filename string = "test.log"
+	// var filename string = "test.log"
 
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
 
-	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
-	if err != nil {
-		fmt.Printf("Can't create the log file")
-		os.Exit(1)
-	}
-	log.SetOutput(f)
+	// f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+	// if err != nil {
+	// 	fmt.Printf("Can't create the log file")
+	// 	os.Exit(1)
+	// }
+	// log.SetOutput(f)
 
 	for k, v := range DefaultSettings {
 		getOrSetEnvVar(k, v)
