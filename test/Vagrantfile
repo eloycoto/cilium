@@ -16,7 +16,7 @@ Vagrant.configure("2") do |config|
             end
 
             # server.vm.box = "bento/ubuntu-17.04"
-            server.vm.box = "eloy/cilium"
+            server.vm.box = "eloycoto/cilium"
             server.vm.hostname = "k8s#{i}"
             server.vm.network "private_network",
                 ip: "192.168.36.1#{i}",

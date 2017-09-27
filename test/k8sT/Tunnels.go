@@ -12,7 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var _ = Describe("K8sTunnelTest", func() {
+var _ = XDescribe("K8sTunnelTest", func() {
 
 	var kubectl *helpers.Kubectl
 	var demoDSPath string
