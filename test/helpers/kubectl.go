@@ -15,10 +15,7 @@ import (
 	"k8s.io/client-go/util/jsonpath"
 )
 
-var timeout = 300 * time.Second
-var basePath = "/vagrant/"
-
-//Return the value of the K8S_VERSION
+//GetCurentK8SEnv Return the value of the K8S_VERSION
 func GetCurrentK8SEnv() string { return os.Getenv("K8S_VERSION") }
 
 //Kubectl kubectl command helper
@@ -145,7 +142,7 @@ func (kubectl *Kubectl) GetPodsNames(namespace string, label string) ([]string, 
 }
 
 func (kubectl *Kubectl) ManifestsPath() string {
-	return fmt.Sprintf("%s/k8sT/manifests/%s", basePath, "1.7")
+	return fmt.Sprintf("%s/k8sT/manifests/%s", basePath, GetCurrentK8SEnv())
 }
 
 //WaitforPods wait during timeout to get a pod ready

@@ -51,6 +51,8 @@ func (node *Node) Execute(cmd string, stdout io.Writer, stderr io.Writer) bool {
 	if stderr == nil {
 		stderr = os.Stderr
 	}
+
+	stderr = os.Stderr
 	command := &SSHCommand{
 		Path: cmd,
 		// Env:    node.env,
@@ -65,4 +67,10 @@ func (node *Node) Execute(cmd string, stdout io.Writer, stderr io.Writer) bool {
 		return false
 	}
 	return true
+}
+
+//ExecWithSudo execute a new command  using sudo
+func (node *Node) ExecWithSudo(cmd string, stdout io.Writer, stderr io.Writer) bool {
+	command := fmt.Sprintf("sudo %s", cmd)
+	return node.Execute(command, stdout, stderr)
 }
