@@ -22,6 +22,7 @@ var _ = XDescribe("K8sPolicyTest", func() {
 	var logger *log.Entry
 	var path string
 	var podFilter string
+
 	afterAll := &ginkgoext.AfterAll{
 		Body: func() {
 			kubectl.Delete(path)

@@ -18,6 +18,15 @@ then
         echo "No master, no need to compile"
     fi
 else
+    make
     make install
-    #FIXME: Need to restart here?
+    mkdir -p /etc/sysconfig/
+    cp -f contrib/systemd/cilium /etc/sysconfig/cilium
+    for svc in $(ls -1 ./contrib/systemd/*.*); do
+            cp -f "${svc}"  /etc/systemd/system/
+            service=$(echo "$svc" | sed -E -n 's/.*\/(.*?).(service|mount)/\1.\2/p')
+            echo "service $service"
+            systemctl enable $service || echo "service $service failed"
+            systemctl restart $service
+    done
 fi

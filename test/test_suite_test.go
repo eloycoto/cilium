@@ -51,6 +51,9 @@ var _ = BeforeSuite(func() {
 	fmt.Printf("Before Suite, provision a new servers \n")
 	vagrant.Create()
 	fmt.Printf("Before Suite finished")
+
+	//FIXME: This should provision kubernetes, and wait until cilium image is
+	//ready. An idea
 	return
 })
 
