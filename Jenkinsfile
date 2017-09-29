@@ -16,16 +16,13 @@ pipeline {
             agent any
             steps {
                 withEnv(["GOPATH=${WORKSPACE}", "TESTDIR=${WORKSPACE}/${PROJ_PATH}/test"]){
-                    sh 'ls $WORKSPACE/src/github.com/cilium/'
-                    sh 'echo ${TESTDIR}'
-                    sh 'echo ${PROJ_PATH}'
                     sh 'cd ${TESTDIR}; ginkgo --focus="K8s*" -v'
                 }
             }
             post {
                 always {
                     junit 'test/*.xml'
-                    /* sh 'cd test/; vagrant destroy -f' */
+                    sh 'cd test/; vagrant destroy -f'
                 }
             }
         }

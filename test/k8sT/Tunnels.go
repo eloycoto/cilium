@@ -29,14 +29,15 @@ var _ = Describe("K8sTunnelTest", func() {
 
 		kubectl = helpers.CreateKubectl("k8s1", logger)
 		demoDSPath = fmt.Sprintf("%s/demo_ds.yaml", kubectl.ManifestsPath())
+		kubectl.Node.Execute("kubectl -n kube-system delete ds cilium", nil, nil)
+		WaitToDeleteCilium(kubectl, logger)
 		initilized = true
 	}
 
 	BeforeEach(func() {
 		initilize()
-		//We use a DaemonSet to ensure that all the pods are in different node
 		kubectl.Apply(demoDSPath)
-	})
+	}, 600)
 
 	AfterEach(func() {
 		kubectl.Delete(demoDSPath)
@@ -61,16 +62,7 @@ var _ = Describe("K8sTunnelTest", func() {
 		tunnStatus := isNodeNetworkingWorking(kubectl, "zgroup=testDS")
 		Expect(tunnStatus).Should(BeTrue())
 		kubectl.Delete(path)
-		var status int = 1
-		for status > 0 {
-			pods, err := kubectl.GetCiliumPods("kube-system")
-			status := len(pods)
-			logger.Infof("VXLAN Mode pods termintating '%d' err='%v' pods='%v'", status, err, pods)
-			if status == 0 {
-				return
-			}
-			time.Sleep(1 * time.Second)
-		}
+		WaitToDeleteCilium(kubectl, logger)
 	}, 600)
 
 	It("Check Geneve mode", func() {
@@ -93,16 +85,7 @@ var _ = Describe("K8sTunnelTest", func() {
 		Expect(tunnStatus).Should(BeTrue())
 		//FIXME: Maybe added here a cilium bpf tunnel status?
 		kubectl.Delete(path)
-		var status int = 1
-		for status > 0 {
-			pods, err := kubectl.GetCiliumPods("kube-system")
-			status := len(pods)
-			logger.Infof("VXLAN Mode pods termintating '%d' err='%v' pods='%v'", status, err, pods)
-			if status == 0 {
-				return
-			}
-			time.Sleep(1 * time.Second)
-		}
+		WaitToDeleteCilium(kubectl, logger)
 	}, 600)
 })
 
@@ -120,4 +103,17 @@ func isNodeNetworkingWorking(kubectl *helpers.Kubectl, filter string) bool {
 		return false
 	}
 	return true
+}
+
+func WaitToDeleteCilium(kubectl *helpers.Kubectl, logger *log.Entry) {
+	var status int = 1
+	for status > 0 {
+		pods, err := kubectl.GetCiliumPods("kube-system")
+		status := len(pods)
+		logger.Infof("Cilium pods termintating '%d' err='%v' pods='%v'", status, err, pods)
+		if status == 0 {
+			return
+		}
+		time.Sleep(1 * time.Second)
+	}
 }
