@@ -28,7 +28,7 @@ var _ = Describe("K8sTunnelTest", func() {
 		kubectl = helpers.CreateKubectl("k8s1", logger)
 		path := fmt.Sprintf("%s/cilium_ds.yaml", kubectl.ManifestsPath())
 		kubectl.Apply(path)
-		_, err := kubectl.WaitforPods("kube-system", "-l k8s-app=cilium", 300)
+		_, err := kubectl.WaitforPods("kube-system", "-l k8s-app=cilium", 600)
 		Expect(err).Should(BeNil())
 		initilized = true
 	}
