@@ -3,6 +3,7 @@ package helpers
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -41,6 +42,40 @@ func (c *Cilium) Exec(cmd string) *cmdRes {
 		stderr: stderr,
 		exit:   exit,
 	}
+}
+
+//EndPointSetConfig: set to a container endpoint a new config
+func (c *Cilium) EndpointSetConfig(container, option, value string) bool {
+	data := c.Exec(fmt.Sprintf("endpoint config %s %s=%s", container, option, value))
+	fmt.Printf("%v", data)
+	return data.Correct()
+}
+
+func (c *Cilium) GetEndpoints() *cmdRes {
+	return c.Exec("endpoint list -o json")
+}
+
+func (c *Cilium) GetEndpointsIds() (map[string]string, error) {
+	// cilium endpoint list -o jsonpath='{range [*]}{@.container-name}{"="}{@.id}{"\n"}{end}'
+	filter := `{range [*]}{@.container-name}{"="}{@.id}{"\n"}{end}`
+	endpoints := c.Exec(fmt.Sprintf("endpoint list -o jsonpath='%s'", filter))
+	if !endpoints.Correct() {
+		return nil, fmt.Errorf("Can't get endpoint list")
+	}
+	return endpoints.KVOutput(), nil
+}
+
+func (c *Cilium) GetEndpointsNames() ([]string, error) {
+	data := c.GetEndpoints()
+	if data.Correct() == false {
+		return nil, fmt.Errorf("Could't get endpoints")
+	}
+	result, err := data.Filter("{ [*].container-name }")
+	if err != nil {
+		return nil, err
+	}
+
+	return strings.Split(result.String(), " "), nil
 }
 
 func (c *Cilium) GetPolicyRevision() (int, error) {

@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var _ = FDescribe("RunConnectivyTest", func() {
+var _ = Describe("RunConnectivyTest", func() {
 
 	var initilized bool
 	var networkName string = "cilium-net"
@@ -118,4 +118,148 @@ var _ = FDescribe("RunConnectivyTest", func() {
 		ping := docker.Node.Execute(fmt.Sprintf("ping -c 4 %s", serverIP), nil, nil)
 		Expect(ping).Should(BeTrue())
 	}, afterAll)
+})
+
+var _ = Describe("RunConntrackTest", func() {
+
+	var initilized bool
+	var networkName string = "cilium-net"
+
+	var netperfImage string = "tgraf/netperf"
+	var logger *log.Entry
+	var docker *helpers.Docker
+	var cilium *helpers.Cilium
+
+	initilize := func() {
+		if initilized == true {
+			return
+		}
+		logger = log.WithFields(log.Fields{"test": "RunConnectivyTest"})
+		logger.Info("Starting")
+		docker, cilium = helpers.CreateNewRuntimeHelper("runtime", logger)
+		docker.NetworkCreate(networkName, "")
+		initilized = true
+	}
+
+	client_server_connectivity := func() {
+		cliIP, err := docker.ContainerInspectNet("client")
+		Expect(err).Should(BeNil(), "Couldn't get container client Meta")
+
+		srvIP, err := docker.ContainerInspectNet("server")
+		Expect(err).Should(BeNil(), "Couldn't get container server Meta")
+
+		By("Client pinging server IPv6")
+		res := docker.ContainerExec("client", fmt.Sprintf("ping6 -c 4 %s", srvIP["IPv6"]))
+		Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+			"Client can't ping to server %s", srvIP["IPv6"]))
+
+		By("Client pinging server IPv4")
+		res = docker.ContainerExec("client", fmt.Sprintf("ping -c 4 %s", srvIP["IPv4"]))
+		Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+			"Client can't ping to server %s", srvIP["IPv4"]))
+
+		By("Client netcat to port 777 IPv6")
+		res = docker.ContainerExec("client", fmt.Sprintf("nc -w 4 %s 777", srvIP["IPv6"]))
+		Expect(res.Correct()).Should(BeFalse(), fmt.Sprintf(
+			"Client can connect to %s:777. Should fail", srvIP["IPv6"]))
+
+		By("Client netcat to port 777 IPv4")
+		res = docker.ContainerExec("client", fmt.Sprintf("nc -w 4 %s 777", srvIP["IPv4"]))
+		Expect(res.Correct()).Should(BeFalse(), fmt.Sprintf(
+			"Client can connect to %s:777. Should fail", srvIP["IPv4"]))
+
+		By("Client netperf to server IPv6")
+		res = docker.ContainerExec("client", fmt.Sprintf(
+			"netperf -l 3 -t TCP_RR -H %s", srvIP["IPv6"]))
+		Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+			"Client can't netperf to server %s", srvIP["IPv6"]))
+
+		By("Client netperf to server IPv4")
+		res = docker.ContainerExec("client", fmt.Sprintf(
+			"netperf -l 3 -t TCP_RR -H %s", srvIP["IPv4"]))
+		Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+			"Client can't netperf to server %s", srvIP["IPv4"]))
+
+		By("Client UDP netperf to server IPv6")
+		res = docker.ContainerExec("client", fmt.Sprintf(
+			"netperf -l 3 -t UDP_RR -H %s", srvIP["IPv6"]))
+		Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+			"Client can't netperf to server %s", srvIP["IPv6"]))
+
+		By("Client UDP netperf to server IPv4")
+		res = docker.ContainerExec("client", fmt.Sprintf(
+			"netperf -l 3 -t UDP_RR -H %s", srvIP["IPv4"]))
+		Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+			"Client can't netperf to server %s", srvIP["IPv4"]))
+
+		By("Ping from host to server IPv6")
+		ping := docker.Node.Execute(fmt.Sprintf("ping6 -c 4 %s", srvIP["IPv6"]), nil, nil)
+		Expect(ping).Should(BeTrue(), "Host Can't ping to server")
+
+		By("Ping from host to server IPv4")
+		ping = docker.Node.Execute(fmt.Sprintf("ping -c 4 %s", srvIP["IPv4"]), nil, nil)
+		Expect(ping).Should(BeTrue(), "Host can't ping to server")
+
+		By("Ping from server to client IPv6")
+		res = docker.ContainerExec("server", fmt.Sprintf("ping6 -c 4 %s", cliIP["IPv6"]))
+		Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+			"Server can't ping to client %s", cliIP["IPv6"]))
+
+		By("Ping from server to client IPv4")
+		res = docker.ContainerExec("server", fmt.Sprintf("ping -c 4 %s", cliIP["IPv4"]))
+		Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+			"Server can't ping to client %s", cliIP["IPv4"]))
+	}
+
+	BeforeEach(func() {
+		initilize()
+		docker.ContainerCreate("client", netperfImage, networkName, "-l id.client")
+		docker.ContainerCreate("server", netperfImage, networkName, "-l id.server")
+		cilium.Exec("policy delete --all")
+	})
+
+	AfterEach(func() {
+		docker.ContainerRm("server")
+		docker.ContainerRm("client")
+	})
+
+	It("Conntrack disabled", func() {
+		endpoints, err := cilium.GetEndpointsIds()
+		Expect(err).Should(BeNil(), "Couldn't get endpoints IDS")
+
+		status := cilium.EndpointSetConfig(endpoints["server"], "Conntrack", "false")
+		Expect(status).Should(BeTrue(), "Couldn't set conntrack=false on endpoint 'server'")
+
+		status = cilium.EndpointSetConfig(endpoints["client"], "Conntrack", "false")
+		Expect(status).Should(BeTrue(), "Couldn't set conntrack=false on endpoint 'client'")
+
+		client_server_connectivity()
+	})
+
+	It("ConntrackLocal disabled", func() {
+		endpoints, err := cilium.GetEndpointsIds()
+		Expect(err).Should(BeNil(), "Couldn't get endpoints IDS")
+
+		status := cilium.EndpointSetConfig(endpoints["server"], "ConntrackLocal", "false")
+		Expect(status).Should(BeTrue(), "Couldn't set conntrack=false on endpoint 'server'")
+
+		status = cilium.EndpointSetConfig(endpoints["client"], "ConntrackLocal", "false")
+		Expect(status).Should(BeTrue(), "Couldn't set conntrack=false on endpoint 'client'")
+
+		client_server_connectivity()
+	})
+
+	It("ConntrackLocal Enabled", func() {
+		endpoints, err := cilium.GetEndpointsIds()
+		Expect(err).Should(BeNil(), "Couldn't get endpoints IDS")
+
+		status := cilium.EndpointSetConfig(endpoints["server"], "ConntrackLocal", "true")
+		Expect(status).Should(BeTrue(), "Couldn't set conntrack=false on endpoint 'server'")
+
+		status = cilium.EndpointSetConfig(endpoints["client"], "ConntrackLocal", "true")
+		Expect(status).Should(BeTrue(), "Couldn't set conntrack=false on endpoint 'client'")
+
+		client_server_connectivity()
+	})
+
 })
