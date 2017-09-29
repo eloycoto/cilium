@@ -59,7 +59,15 @@ var _ = Describe("RunConnectivyTest", func() {
 		docker.ContainerCreate("client", netperfImage, networkName, "-l id.client")
 		docker.ContainerCreate("server", netperfImage, networkName, "-l id.server")
 		cilium.Exec("policy delete --all")
-	})
+
+		for {
+			if data, _ := cilium.GetEndpointsNames(); len(data) >= 2 {
+				logger.Info("Waiting for endpoints to be ready")
+				return
+			}
+			helpers.Sleep(1)
+		}
+	}, 150)
 
 	AfterEach(func() {
 		docker.ContainerRm("client")
