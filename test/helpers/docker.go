@@ -92,6 +92,36 @@ func (do *Docker) ContainerInspect(name string) *cmdRes {
 	}
 }
 
+//ContainerInspectNet: return the Net details for a container
+func (do *Docker) ContainerInspectNet(name string) (map[string]string, error) {
+	res := do.ContainerInspect(name)
+	var properties map[string]string = map[string]string{
+		"EndpointID":        "EndpointID",
+		"GlobalIPv6Address": "IPv6",
+		"IPAddress":         "IPv4",
+		"NetworkID":         "NetworkID",
+	}
+
+	if !res.Correct() {
+		return nil, fmt.Errorf("Can't get the container")
+	}
+	filter := `{ [0].NetworkSettings.Networks.cilium-net }`
+	result := make(map[string]string)
+	data, err := res.FindResults(filter)
+	if err != nil {
+		return nil, err
+	}
+	for _, val := range data {
+		iface := val.Interface()
+		for k, v := range iface.(map[string]interface{}) {
+			if key, ok := properties[k]; ok {
+				result[key] = fmt.Sprintf("%s", v)
+			}
+		}
+	}
+	return result, nil
+}
+
 //NetworkCreate create a new docker network
 func (do *Docker) NetworkCreate(name string, subnet string) *cmdRes {
 	stdout := new(bytes.Buffer)
