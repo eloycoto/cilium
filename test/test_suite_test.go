@@ -41,13 +41,12 @@ func init() {
 
 func TestTest(t *testing.T) {
 	RegisterFailHandler(Fail)
-	junitReporter := reporters.NewJUnitReporter(ginkgoext.GetScope())
+	junitReporter := reporters.NewJUnitReporter(fmt.Sprintf("%s.xml", ginkgoext.GetScope()))
 	RunSpecsWithDefaultAndCustomReporters(t, "Cilium Test Suite", []Reporter{junitReporter})
 }
 
 var _ = BeforeSuite(func() {
 	scope := ginkgoext.GetScope()
-	log.Infof("Running Before suite flag for scope='%s'", scope)
 	switch scope {
 	case "runtime":
 		vagrant.Create("runtime")
@@ -64,6 +63,7 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	return
 	scope := ginkgoext.GetScope()
 	log.Info("Running After Suite flag for scope='%s'", scope)
 	switch scope {

@@ -16,8 +16,7 @@ type Vagrant struct{}
 //Create a new vagrant server
 func (vagrant *Vagrant) Create(scope string) error {
 	createCMD := "vagrant up %s"
-
-	for _, v := range vagrant.Status() {
+	for _, v := range vagrant.Status(scope) {
 		if v == "running" {
 			createCMD = "vagrant provision %s"
 			break
@@ -109,7 +108,7 @@ func (vagrant *Vagrant) getPath(prog string) string {
 func (vagrant *Vagrant) Status(key ...string) map[string]string {
 	var result map[string]string = map[string]string{}
 
-	cmd := vagrant.getCMD("vagrant status --machine-readable")
+	cmd := vagrant.getCMD(fmt.Sprintf("vagrant status %s --machine-readable", key))
 	data, err := cmd.CombinedOutput()
 	if err != nil {
 		return result
