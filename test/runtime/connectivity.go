@@ -98,7 +98,7 @@ var _ = Describe("RunConnectivyTest", func() {
 	}, afterAll)
 
 	ginkgoext.It("Test containers connectivity WITH policy", func() {
-		policyID, _ := cilium.ImportPolicy(
+		policyID, _ := cilium.PolicyImport(
 			fmt.Sprintf("%s/test.policy", cilium.ManifestsPath()), 150)
 		logger.Debug("New policy created with id '%d'", policyID)
 
