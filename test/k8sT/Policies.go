@@ -13,7 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var _ = XDescribe("K8sPolicyTest", func() {
+var _ = Describe("K8sPolicyTest", func() {
 
 	var demoPath string
 	var initilized bool
@@ -223,12 +223,12 @@ var _ = XDescribe("K8sPolicyTest", func() {
 		Expect(err).Should(HaveOccurred())
 
 		_, err = kubectl.Exec(
-			"default", appPods["app3"], fmt.Sprintf("curl http://%s/public", clusterIP))
-		Expect(err).Should(HaveOccurred())
+			"default", appPods["app3"], fmt.Sprintf("curl -s --fail http://%s/public", clusterIP))
+		Expect(err).Should(BeNil())
 
 		_, err = kubectl.Exec(
-			"default", appPods["app3"], fmt.Sprintf("curl http://%s/private", clusterIP))
-		Expect(err).Should(HaveOccurred())
+			"default", appPods["app3"], fmt.Sprintf("curl --fail -s http://%s/private", clusterIP))
+		Expect(err).Should(BeNil())
 
 		status = kubectl.Delete(l7Policy)
 		Expect(status).Should(BeTrue())
