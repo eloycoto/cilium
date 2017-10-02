@@ -78,14 +78,22 @@ func (c *Cilium) GetEndpointsNames() ([]string, error) {
 	return strings.Split(result.String(), " "), nil
 }
 
-func (c *Cilium) GetPolicyRevision() (int, error) {
+func (c *Cilium) ManifestsPath() string {
+	return fmt.Sprintf("%s/runtime/manifests/", basePath)
+}
+
+func (c *Cilium) GetFullPath(name string) string {
+	return fmt.Sprintf("%s%s", c.ManifestsPath(), name)
+}
+
+func (c *Cilium) PolicyGetRevision() (int, error) {
 	rev := c.Exec("policy get | grep Revision| awk '{print $2}'")
 	return rev.IntOutput()
 }
 
-func (c *Cilium) ImportPolicy(path string, timeout int) (int, error) {
+func (c *Cilium) PolicyImport(path string, timeout int) (int, error) {
 	var wait int
-	revision, err := c.GetPolicyRevision()
+	revision, err := c.PolicyGetRevision()
 	if err != nil {
 		return -1, fmt.Errorf("Can't get policy revision: %s", err)
 	}
@@ -98,8 +106,9 @@ func (c *Cilium) ImportPolicy(path string, timeout int) (int, error) {
 	}
 
 	for wait < timeout {
-		current_rev, _ := c.GetPolicyRevision()
+		current_rev, _ := c.PolicyGetRevision()
 		if current_rev > revision {
+			c.PolicyWait(current_rev)
 			return current_rev, nil
 		}
 		time.Sleep(1 * time.Second)
@@ -108,6 +117,6 @@ func (c *Cilium) ImportPolicy(path string, timeout int) (int, error) {
 	return -1, fmt.Errorf("Can't import Policy revision %s", path)
 }
 
-func (c *Cilium) ManifestsPath() string {
-	return fmt.Sprintf("%s/runtime/manifests/", basePath)
+func (c *Cilium) PolicyWait(id int) *cmdRes {
+	return c.Exec(fmt.Sprintf("policy wait %d", id))
 }

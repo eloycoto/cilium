@@ -18,6 +18,9 @@ pipeline {
                 withEnv(["GOPATH=${WORKSPACE}", "TESTDIR=${WORKSPACE}/${PROJ_PATH}/test"]){
                     sh 'cd ${TESTDIR}; ginkgo --focus="K8s*" -v'
                 }
+                withEnv(["GOPATH=${WORKSPACE}", "TESTDIR=${WORKSPACE}/${PROJ_PATH}/test"]){
+                    sh 'cd ${TESTDIR}; ginkgo --focus="Run*" -v'
+                }
             }
             post {
                 always {
