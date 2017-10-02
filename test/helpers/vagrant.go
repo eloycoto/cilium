@@ -14,16 +14,16 @@ import (
 type Vagrant struct{}
 
 //Create a new vagrant server
-func (vagrant *Vagrant) Create() error {
-	createCMD := "vagrant up"
+func (vagrant *Vagrant) Create(scope string) error {
+	createCMD := "vagrant up %s"
 
 	for _, v := range vagrant.Status() {
 		if v == "running" {
-			createCMD = "vagrant provision"
+			createCMD = "vagrant provision %s"
 			break
 		}
 	}
-	cmd := vagrant.getCMD(createCMD)
+	cmd := vagrant.getCMD(fmt.Sprintf(createCMD, scope))
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -69,9 +69,9 @@ func (vagrant *Vagrant) deleteConfig() error {
 }
 
 //Destroy all the vms
-func (vagrant *Vagrant) Destroy() error {
+func (vagrant *Vagrant) Destroy(scope string) error {
 
-	cmd := vagrant.getCMD("vagrant destroy -f")
+	cmd := vagrant.getCMD(fmt.Sprintf("vagrant destroy %s -f", scope))
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		return err

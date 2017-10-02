@@ -15,12 +15,18 @@ pipeline {
         stage('Test') {
             agent any
             steps {
-                withEnv(["GOPATH=${WORKSPACE}", "TESTDIR=${WORKSPACE}/${PROJ_PATH}/test"]){
-                    sh 'cd ${TESTDIR}; ginkgo --focus="K8s*" -v'
-                }
-                withEnv(["GOPATH=${WORKSPACE}", "TESTDIR=${WORKSPACE}/${PROJ_PATH}/test"]){
-                    sh 'cd ${TESTDIR}; ginkgo --focus="Run*" -v'
-                }
+                parallel(
+                    "Runtime":{
+                        withEnv(["GOPATH=${WORKSPACE}", "TESTDIR=${WORKSPACE}/${PROJ_PATH}/test"]){
+                            sh 'cd ${TESTDIR}; ginkgo --focus="Run*" -v'
+                        }
+                    },
+                    "K8s":{
+                        withEnv(["GOPATH=${WORKSPACE}", "TESTDIR=${WORKSPACE}/${PROJ_PATH}/test"]){
+                            sh 'cd ${TESTDIR}; ginkgo --focus="K8s*" -v'
+                        }
+                    },
+                )
             }
             post {
                 always {

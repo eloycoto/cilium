@@ -10,6 +10,7 @@ import (
 
 	"testing"
 
+	ginkgoext "github.com/cilium/cilium/test/ginkgo-ext"
 	"github.com/cilium/cilium/test/helpers"
 	log "github.com/sirupsen/logrus"
 )
@@ -18,13 +19,14 @@ var DefaultSettings map[string]string = map[string]string{
 	"K8S_VERSION": "1.7",
 }
 
-func init() {
+var vagrant helpers.Vagrant
 
-	// var filename string = "test.log"
+func init() {
 
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
 
+	// var filename string = "test.log"
 	// f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
 	// if err != nil {
 	// 	fmt.Printf("Can't create the log file")
@@ -39,27 +41,39 @@ func init() {
 
 func TestTest(t *testing.T) {
 	RegisterFailHandler(Fail)
-	junitReporter := reporters.NewJUnitReporter("junit.xml")
+	junitReporter := reporters.NewJUnitReporter(ginkgoext.GetScope())
 	RunSpecsWithDefaultAndCustomReporters(t, "Cilium Test Suite", []Reporter{junitReporter})
 }
 
-var vagrant helpers.Vagrant
-
 var _ = BeforeSuite(func() {
-	// This runs when the tests start, before all test
-	log.Info("Running Before suite flag")
-	fmt.Printf("Before Suite, provision a new servers \n")
-	vagrant.Create()
-	fmt.Printf("Before Suite finished")
-
-	//FIXME: This should provision kubernetes, and wait until cilium image is
-	//ready. An idea
+	scope := ginkgoext.GetScope()
+	log.Infof("Running Before suite flag for scope='%s'", scope)
+	switch scope {
+	case "runtime":
+		vagrant.Create("runtime")
+	case "k8s":
+		//FIXME: This should be:
+		// Start k8s1 and provision kubernetes.
+		// When finish, start to build cilium in background
+		// Start k8s2
+		// Wait until compilation finished, and pull cilium image on k8s2
+		vagrant.Create(fmt.Sprintf("k8s1-%s", helpers.GetCurrentK8SEnv()))
+		vagrant.Create(fmt.Sprintf("k8s2-%s", helpers.GetCurrentK8SEnv()))
+	}
 	return
 })
 
 var _ = AfterSuite(func() {
-	// This runs when all the test finished
-	// vagrant.Destroy()
+	scope := ginkgoext.GetScope()
+	log.Info("Running After Suite flag for scope='%s'", scope)
+	switch scope {
+	case "runtime":
+		vagrant.Destroy("runtime")
+	case "k8s":
+		vagrant.Destroy(fmt.Sprintf("k8s1-%s", helpers.GetCurrentK8SEnv()))
+		vagrant.Destroy(fmt.Sprintf("k8s2-%s", helpers.GetCurrentK8SEnv()))
+	}
+	return
 })
 
 func getOrSetEnvVar(key, value string) {
