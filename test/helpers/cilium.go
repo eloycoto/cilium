@@ -29,9 +29,8 @@ func CreateCilium(target string, log *log.Entry) *Cilium {
 	}
 }
 
+//Exec: run a cilium command and return a cmdRes
 func (c *Cilium) Exec(cmd string) *cmdRes {
-	// c.Node.Execute(fmt.Sprintf("cilium %s", name))
-
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 	command := fmt.Sprintf("cilium %s", cmd)
@@ -75,10 +74,12 @@ func (c *Cilium) EndpointWaitUntilReady() bool {
 	return false
 }
 
+//GetEndpoints: Return the endpoints in jsonFormat
 func (c *Cilium) GetEndpoints() *cmdRes {
 	return c.Exec("endpoint list -o json")
 }
 
+//GetEndpointsIds: return a map with with docker container name and the endpoint id
 func (c *Cilium) GetEndpointsIds() (map[string]string, error) {
 	// cilium endpoint list -o jsonpath='{range [*]}{@.container-name}{"="}{@.id}{"\n"}{end}'
 	filter := `{range [*]}{@.container-name}{"="}{@.id}{"\n"}{end}`
@@ -89,6 +90,7 @@ func (c *Cilium) GetEndpointsIds() (map[string]string, error) {
 	return endpoints.KVOutput(), nil
 }
 
+//GetEndpointsNames: Return the list of containers from cilium endpoint
 func (c *Cilium) GetEndpointsNames() ([]string, error) {
 	data := c.GetEndpoints()
 	if data.Correct() == false {
@@ -110,6 +112,30 @@ func (c *Cilium) GetFullPath(name string) string {
 	return fmt.Sprintf("%s%s", c.ManifestsPath(), name)
 }
 
+//PolicyEndpointsSummary: Return a map of the status of the policies
+func (c *Cilium) PolicyEndpointsSummary() (map[string]int, error) {
+	var result map[string]int = map[string]int{
+		"enabled":  0,
+		"disabled": 0,
+		"total":    0,
+	}
+	endpoints, err := c.GetEndpoints().Filter("{ [*].policy-enabled }")
+	if err != nil {
+		return result, fmt.Errorf("Can't get the endpoints")
+	}
+	status := strings.Split(endpoints.String(), " ")
+	result["enabled"], result["total"] = CountValues("true", status)
+	result["disabled"], result["total"] = CountValues("false", status)
+	return result, nil
+}
+
+func (c *Cilium) PolicyEnforcementSet(status string) *cmdRes {
+	res := c.Exec(fmt.Sprintf("config PolicyEnforcement=%s", status))
+	c.EndpointWaitUntilReady()
+	return res
+}
+
+//PolicyGetRevision: Get the current Policy revision
 func (c *Cilium) PolicyGetRevision() (int, error) {
 	rev := c.Exec("policy get | grep Revision| awk '{print $2}'")
 	return rev.IntOutput()

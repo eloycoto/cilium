@@ -171,6 +171,7 @@ func (do *Docker) NetworkGet(name string) *cmdRes {
 	}
 }
 
+//SampleContainersActions: This create/delete a bunch of containers to test
 func (do *Docker) SampleContainersActions(mode string, networkName string) {
 	var images map[string]string = map[string]string{
 		"httpd1": "cilium/demo-httpd",
