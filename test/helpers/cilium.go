@@ -51,6 +51,30 @@ func (c *Cilium) EndpointSetConfig(container, option, value string) bool {
 	return data.Correct()
 }
 
+//EndpointWaitUntilReady: This function wait until all the endpoints are in the ready status
+func (c *Cilium) EndpointWaitUntilReady() bool {
+	for {
+		status, err := c.GetEndpoints().Filter("{[*].state}")
+		if err != nil {
+			Sleep(1)
+			continue
+		}
+		var valid, invalid int
+		for _, endpoint := range strings.Split(status.String(), " ") {
+			if endpoint != "ready" {
+				invalid++
+			} else {
+				valid++
+			}
+		}
+		if invalid == 0 {
+			return true
+		}
+		Sleep(1)
+	}
+	return false
+}
+
 func (c *Cilium) GetEndpoints() *cmdRes {
 	return c.Exec("endpoint list -o json")
 }
@@ -91,14 +115,14 @@ func (c *Cilium) PolicyGetRevision() (int, error) {
 	return rev.IntOutput()
 }
 
+//PolicyImport: Import a new policy in cilium and wait until all endpoints
+// get the policy apply.
 func (c *Cilium) PolicyImport(path string, timeout int) (int, error) {
 	var wait int
 	revision, err := c.PolicyGetRevision()
 	if err != nil {
 		return -1, fmt.Errorf("Can't get policy revision: %s", err)
 	}
-
-	fmt.Printf("\n---->policy import %s \n", path)
 
 	res := c.Exec(fmt.Sprintf("policy import %s", path))
 	if res.Correct() == false {

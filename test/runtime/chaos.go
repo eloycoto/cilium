@@ -48,6 +48,7 @@ var _ = Describe("RunChaosMonkey", func() {
 		for wait < timeout {
 			res := cilium.Node.ExecWithSudo("cilium status", nil, nil)
 			if res {
+				cilium.EndpointWaitUntilReady()
 				break
 			}
 			logger.Infof("Cilium is not ready yet wait='%d'", wait)
