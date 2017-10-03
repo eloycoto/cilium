@@ -39,7 +39,7 @@ var _ = Describe("RunChaosMonkey", func() {
 
 		endpoints, err := cilium.GetEndpointsNames()
 		Expect(err).Should(BeNil())
-		original_endpoins := len(endpoints)
+		originalEndpoins := len(endpoints)
 		cilium.Node.ExecWithSudo("systemctl restart cilium", nil, nil)
 
 		var wait int
@@ -49,6 +49,9 @@ var _ = Describe("RunChaosMonkey", func() {
 			res := cilium.Node.ExecWithSudo("cilium status", nil, nil)
 			if res {
 				cilium.EndpointWaitUntilReady()
+				// Sometimes system fail on jenkins. Looks like a race condition.
+				// so we sleep for 5 seconds.
+				helpers.Sleep(5)
 				break
 			}
 			logger.Infof("Cilium is not ready yet wait='%d'", wait)
@@ -58,7 +61,7 @@ var _ = Describe("RunChaosMonkey", func() {
 
 		endpoints, err = cilium.GetEndpointsNames()
 		Expect(err).Should(BeNil())
-		Expect(len(endpoints)).To(Equal(original_endpoins))
+		Expect(len(endpoints)).To(Equal(originalEndpoins))
 		for _, container := range endpoints {
 			docker.ContainerRm(container)
 		}
