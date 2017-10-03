@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var _ = Describe("RunConnectivyTest", func() {
+var _ = XDescribe("RunConnectivyTest", func() {
 
 	var initilized bool
 	var networkName string = "cilium-net"

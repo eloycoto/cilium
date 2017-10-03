@@ -23,8 +23,11 @@ var vagrant helpers.Vagrant
 
 func init() {
 
-	log.SetOutput(os.Stdout)
+	log.SetOutput(GinkgoWriter)
 	log.SetLevel(log.DebugLevel)
+	log.SetFormatter(&log.TextFormatter{
+		DisableTimestamp: true,
+	})
 
 	// var filename string = "test.log"
 	// f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)

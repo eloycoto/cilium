@@ -170,3 +170,25 @@ func (do *Docker) NetworkGet(name string) *cmdRes {
 		exit:   exit,
 	}
 }
+
+func (do *Docker) SampleContainersActions(mode string, networkName string) {
+	var images map[string]string = map[string]string{
+		"httpd1": "cilium/demo-httpd",
+		"httpd2": "cilium/demo-httpd",
+		"httpd3": "cilium/demo-httpd",
+		"app1":   "tgraf/netperf",
+		"app2":   "tgraf/netperf",
+		"app3":   "tgraf/netperf",
+	}
+
+	switch mode {
+	case "create":
+		for k, v := range images {
+			do.ContainerCreate(k, v, networkName, fmt.Sprintf("-l id.%s", k))
+		}
+	case "delete":
+		for k, _ := range images {
+			do.ContainerRm(k)
+		}
+	}
+}
