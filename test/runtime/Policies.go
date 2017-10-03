@@ -72,36 +72,16 @@ var _ = Describe("RunPolicies", func() {
 		docker.NetworkCreate(networkName, "")
 		initilized = true
 	}
-	containers := func(mode string) {
-		var images map[string]string = map[string]string{
-			"httpd1": "cilium/demo-httpd",
-			"httpd2": "cilium/demo-httpd",
-			"httpd3": "cilium/demo-httpd",
-			"app1":   "tgraf/netperf",
-			"app2":   "tgraf/netperf",
-			"app3":   "tgraf/netperf",
-		}
 
-		switch mode {
-		case "create":
-			for k, v := range images {
-				docker.ContainerCreate(k, v, networkName, fmt.Sprintf("-l id.%s", k))
-			}
-		case "delete":
-			for k, _ := range images {
-				docker.ContainerRm(k)
-			}
-		}
-	}
 	BeforeEach(func() {
 		initilize()
 		cilium.Exec("policy delete --all")
-		containers("create")
+		docker.SampleContainersActions("create", networkName)
+		cilium.EndpointWaitUntilReady()
 	})
 
 	AfterEach(func() {
-		return
-		containers("delete")
+		docker.SampleContainersActions("delete", networkName)
 	})
 
 	connectivityTest := func(tests []string, client, server string, assertFn func() types.GomegaMatcher) {
@@ -130,20 +110,32 @@ var _ = Describe("RunPolicies", func() {
 			case "http":
 				By(title("Client '%s' HttpReq to server '%s' Ipv4"))
 				res := docker.ContainerExec(client, fmt.Sprintf(
-					"curl -s --connect-timeout 3 http://%s:80/public", srvIP["IPv4"]))
+					"curl -s --fail --connect-timeout 3 http://%s:80/public", srvIP["IPv4"]))
 				Expect(res.Correct()).Should(assertFn(), fmt.Sprintf(
 					"Client '%s' can't curl to server '%s'", client, srvIP["IPv4"]))
 			case "http6":
 				By(title("Client '%s' HttpReq to server '%s' IPv6"))
 				res := docker.ContainerExec(client, fmt.Sprintf(
-					"curl -s --connect-timeout 3 http://[%s]:80/public", srvIP["IPv6"]))
+					"curl -s --fail --connect-timeout 3 http://[%s]:80/public", srvIP["IPv6"]))
+				Expect(res.Correct()).Should(assertFn(), fmt.Sprintf(
+					"Client '%s' can't curl to server '%s'", client, server, srvIP["IPv6"]))
+			case "http_private":
+				By(title("Client '%s' HttpReq to server '%s' Ipv4"))
+				res := docker.ContainerExec(client, fmt.Sprintf(
+					"curl -s --fail --connect-timeout 3 http://%s:80/private", srvIP["IPv4"]))
+				Expect(res.Correct()).Should(assertFn(), fmt.Sprintf(
+					"Client '%s' can't curl to server '%s'", client, srvIP["IPv4"]))
+			case "http6_private":
+				By(title("Client '%s' HttpReq to server '%s' Ipv6"))
+				res := docker.ContainerExec(client, fmt.Sprintf(
+					"curl -s --fail --connect-timeout 3 http://%s:80/private", srvIP["IPv6"]))
 				Expect(res.Correct()).Should(assertFn(), fmt.Sprintf(
 					"Client '%s' can't curl to server '%s'", client, srvIP["IPv6"]))
 			}
 		}
 	}
 
-	It("L3/L4 Checks", func() {
+	XIt("L3/L4 Checks", func() {
 		_, err := cilium.PolicyImport(cilium.GetFullPath("l3-policy.json"), 300)
 		Expect(err).Should(BeNil())
 
@@ -157,15 +149,72 @@ var _ = Describe("RunPolicies", func() {
 		connectivityTest([]string{"http", "http6"}, "app1", "httpd2", BeTrue)
 
 		// APP2 can't reach using TCP to HTTP2
-		connectivityTest([]string{"http", "http6"}, "app1", "httpd2", BeFalse)
+		connectivityTest([]string{"http", "http6"}, "app2", "httpd2", BeFalse)
 
 		// APP3 can reach using TCP HTTP2, but can't ping EGRESS
 		connectivityTest([]string{"http", "http6"}, "app3", "httpd3", BeTrue)
 
-		Expect(true).Should(BeTrue())
-		By("Disable")
-		Expect(true).Should(BeTrue())
+		status := cilium.Exec("policy delete --all")
+		Expect(status.Correct()).Should(BeTrue())
+		cilium.EndpointWaitUntilReady()
+
+		By("Disabling all the policies. All should work")
+		connectivityTest([]string{"ping", "ping6", "http", "http6"}, "app1", "httpd1", BeTrue)
+		connectivityTest([]string{"ping", "ping6", "http", "http6"}, "app2", "httpd1", BeTrue)
 	})
 
-	// L7 Rules Enable/disable
+	It("L7 Checks", func() {
+
+		_, err := cilium.PolicyImport(cilium.GetFullPath("l7-simple.json"), 300)
+		Expect(err).Should(BeNil())
+
+		By("Simple Ingress")
+		//APP1 can connnect to public, but no to private
+		connectivityTest([]string{"http", "http6"}, "app1", "httpd1", BeTrue)
+		connectivityTest([]string{"http_private", "http6_private"}, "app1", "httpd1", BeFalse)
+
+		//App2 can't connect
+		connectivityTest([]string{"http", "http6"}, "app2", "httpd1", BeFalse)
+
+		By("Simple Egress")
+
+		//APP2 can connnect to public, but no to private
+		connectivityTest([]string{"http", "http6"}, "app2", "httpd2", BeTrue)
+		connectivityTest([]string{"http_private", "http6_private"}, "app2", "httpd2", BeFalse)
+
+		By("Disabling all the policies. All should work")
+		status := cilium.Exec("policy delete --all")
+		Expect(status.Correct()).Should(BeTrue())
+		cilium.EndpointWaitUntilReady()
+
+		connectivityTest([]string{"ping", "ping6", "http", "http6"}, "app1", "httpd1", BeTrue)
+		connectivityTest([]string{"ping", "ping6", "http", "http6"}, "app2", "httpd1", BeTrue)
+
+		By("Multiple Ingress")
+
+		cilium.Exec("policy delete --all")
+		_, err = cilium.PolicyImport(cilium.GetFullPath("l7-multiple.json"), 300)
+		Expect(err).Should(BeNil())
+
+		//APP1 can connnect to public, but no to private
+		connectivityTest([]string{"http", "http6"}, "app1", "httpd1", BeTrue)
+		connectivityTest([]string{"http_private", "http6_private"}, "app1", "httpd1", BeFalse)
+
+		//App2 can't connect
+		connectivityTest([]string{"http", "http6"}, "app2", "httpd1", BeFalse)
+
+		By("Multiple Egress")
+		//APP2 can connnect to public, but no to private
+		connectivityTest([]string{"http", "http6"}, "app2", "httpd2", BeTrue)
+		connectivityTest([]string{"http_private", "http6_private"}, "app2", "httpd2", BeFalse)
+
+		By("Disabling all the policies. All should work")
+
+		status = cilium.Exec("policy delete --all")
+		Expect(status.Correct()).Should(BeTrue())
+		cilium.EndpointWaitUntilReady()
+
+		connectivityTest([]string{"ping", "ping6", "http", "http6"}, "app1", "httpd1", BeTrue)
+		connectivityTest([]string{"ping", "ping6", "http", "http6"}, "app2", "httpd1", BeTrue)
+	})
 })
