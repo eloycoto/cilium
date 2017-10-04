@@ -1,6 +1,12 @@
 package helpers
 
-import "time"
+import (
+	"bytes"
+	"html/template"
+	"io/ioutil"
+	"os"
+	"time"
+)
 
 func Sleep(delay time.Duration) {
 	time.Sleep(delay * time.Second)
@@ -17,4 +23,22 @@ func CountValues(key string, data []string) (int, int) {
 		}
 	}
 	return result, len(data)
+}
+
+func RenderTemplateToFile(filename string, tmplt string, perm os.FileMode) error {
+	t, err := template.New("").Parse(tmplt)
+	if err != nil {
+		return err
+	}
+	content := new(bytes.Buffer)
+	err = t.Execute(content, nil)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(filename, content.Bytes(), perm)
+	if err != nil {
+		return err
+	}
+	return nil
 }

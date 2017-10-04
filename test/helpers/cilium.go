@@ -170,3 +170,21 @@ func (c *Cilium) PolicyImport(path string, timeout int) (int, error) {
 func (c *Cilium) PolicyWait(id int) *cmdRes {
 	return c.Exec(fmt.Sprintf("policy wait %d", id))
 }
+
+//ServiceAdd: Create a new cilium service
+func (c *Cilium) ServiceAdd(id int, frontend string, backends []string, rev int) *cmdRes {
+	cmd := fmt.Sprintf(
+		"service update --frontend '%s' --backends '%s' --id '%d' --rev '%d'",
+		frontend, strings.Join(backends, ","), id, rev)
+	return c.Exec(cmd)
+}
+
+//ServiceGet: Get a service from cilium
+func (c *Cilium) ServiceGet(id int) *cmdRes {
+	return c.Exec(fmt.Sprintf("service get '%d'", id))
+}
+
+//ServiceDel: delete the service ID
+func (c *Cilium) ServiceDel(id int) *cmdRes {
+	return c.Exec(fmt.Sprintf("service delete '%d'", id))
+}
