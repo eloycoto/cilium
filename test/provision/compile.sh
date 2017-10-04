@@ -27,6 +27,6 @@ else
             service=$(echo "$svc" | sed -E -n 's/.*\/(.*?).(service|mount)/\1.\2/p')
             echo "service $service"
             systemctl enable $service || echo "service $service failed"
-            systemctl restart $service
+            systemctl restart $service || echo "service $service failed to restart"
     done
 fi

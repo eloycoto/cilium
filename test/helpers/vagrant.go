@@ -14,7 +14,7 @@ import (
 type Vagrant struct{}
 
 //Create a new vagrant server
-func (vagrant *Vagrant) Create(scope string) error {
+func (vagrant *Vagrant) Create(scope string, ssh ...bool) error {
 	createCMD := "vagrant up %s"
 	for _, v := range vagrant.Status(scope) {
 		if v == "running" {
@@ -35,21 +35,24 @@ func (vagrant *Vagrant) Create(scope string) error {
 
 	in := bufio.NewScanner(stdout)
 	for in.Scan() {
-		log.Infof(in.Text()) // write each line to your log, or anything you need
+		log.Infof(in.Text()) // write each line to your log
 	}
 
 	if err := cmd.Wait(); err != nil {
 		return err
 	}
-	err = vagrant.createConfig()
-	if err != nil {
-		return err
+
+	if len(ssh) > 0 && ssh[0] == true {
+		err = vagrant.createConfig(scope)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (vagrant *Vagrant) createConfig() error {
-	cmd := vagrant.getCMD("vagrant ssh-config > ssh-config")
+func (vagrant *Vagrant) createConfig(scope string) error {
+	cmd := vagrant.getCMD(fmt.Sprintf("vagrant ssh-config %s > ssh-config", scope))
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		return err
@@ -105,7 +108,7 @@ func (vagrant *Vagrant) getPath(prog string) string {
 }
 
 //Status return a map with the server name (key) and the status as value
-func (vagrant *Vagrant) Status(key ...string) map[string]string {
+func (vagrant *Vagrant) Status(key string) map[string]string {
 	var result map[string]string = map[string]string{}
 
 	cmd := vagrant.getCMD(fmt.Sprintf("vagrant status %s --machine-readable", key))

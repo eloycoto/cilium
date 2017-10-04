@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -73,4 +74,18 @@ func (node *Node) Execute(cmd string, stdout io.Writer, stderr io.Writer) bool {
 func (node *Node) ExecWithSudo(cmd string, stdout io.Writer, stderr io.Writer) bool {
 	command := fmt.Sprintf("sudo %s", cmd)
 	return node.Execute(command, stdout, stderr)
+}
+
+func (node *Node) Exec(cmd string) *cmdRes {
+	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
+
+	exit := node.Execute(cmd, stdout, stderr)
+
+	return &cmdRes{
+		cmd:    cmd,
+		stdout: stdout,
+		stderr: stderr,
+		exit:   exit,
+	}
 }

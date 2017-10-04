@@ -1,8 +1,6 @@
 package RunT
 
 import (
-	"time"
-
 	"github.com/cilium/cilium/test/helpers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -29,19 +27,7 @@ var _ = Describe("RunChaosMonkey", func() {
 		initilized = true
 	}
 
-	BeforeEach(func() {
-		initilize()
-	})
-
-	It("Endpoint recovery on restart", func() {
-		docker.ContainerCreate("client", netperfImage, networkName, "-l id.client")
-		docker.ContainerCreate("server", netperfImage, networkName, "-l id.server")
-
-		endpoints, err := cilium.GetEndpointsNames()
-		Expect(err).Should(BeNil())
-		originalEndpoins := len(endpoints)
-		cilium.Node.ExecWithSudo("systemctl restart cilium", nil, nil)
-
+	wait_for_cilium := func() {
 		var wait int
 		var timeout int = 100
 
@@ -55,9 +41,30 @@ var _ = Describe("RunChaosMonkey", func() {
 				break
 			}
 			logger.Infof("Cilium is not ready yet wait='%d'", wait)
+			helpers.Sleep(1)
 			wait++
-			time.Sleep(1 * time.Second)
 		}
+	}
+
+	BeforeEach(func() {
+		initilize()
+		docker.ContainerCreate("client", netperfImage, networkName, "-l id.client")
+		docker.ContainerCreate("server", netperfImage, networkName, "-l id.server")
+
+	})
+
+	AfterEach(func() {
+		docker.ContainerRm("client")
+		docker.ContainerRm("server")
+	})
+
+	It("Endpoint recovery on restart", func() {
+		endpoints, err := cilium.GetEndpointsNames()
+		Expect(err).Should(BeNil())
+		originalEndpoins := len(endpoints)
+		cilium.Node.ExecWithSudo("systemctl restart cilium", nil, nil)
+
+		wait_for_cilium()
 
 		endpoints, err = cilium.GetEndpointsNames()
 		Expect(err).Should(BeNil())
@@ -65,5 +72,25 @@ var _ = Describe("RunChaosMonkey", func() {
 		for _, container := range endpoints {
 			docker.ContainerRm(container)
 		}
-	})
+	}, 300)
+
+	It("Interfaces chaos", func() {
+		originalLinks, err := docker.Node.Exec("sudo ip link show | wc -l").IntOutput()
+		Expect(err).Should(BeNil())
+
+		_ = docker.Node.Exec("sudo ip link add lxc12345 type veth peer name tmp54321")
+
+		status := docker.Node.Exec("sudo systemctl restart cilium")
+		Expect(status.Correct()).Should(BeTrue())
+
+		wait_for_cilium()
+
+		status = docker.Node.Exec("sudo ip link show lxc12345")
+		Expect(status.Correct()).Should(BeFalse(),
+			"leftover interface were not properly cleaned up")
+
+		links, err := docker.Node.Exec("sudo ip link show | wc -l").IntOutput()
+		Expect(links).Should(Equal(originalLinks),
+			"Some network interfaces were accidentally removed!")
+	}, 300)
 })
