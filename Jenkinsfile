@@ -10,7 +10,7 @@ pipeline {
                 sh 'rm -rf src; mkdir -p src/github.com/cilium'
                 sh 'ln -s $WORKSPACE src/github.com/cilium/cilium'
                 checkout scm
-                sh 'rm test/ssh-config'
+                sh 'echo "" > test/ssh-config'
             }
         }
         stage('Test') {

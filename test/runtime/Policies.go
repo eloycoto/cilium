@@ -27,6 +27,10 @@ var _ = Describe("RunPolicyEnforcement", func() {
 		logger.Info("Starting")
 		docker, cilium = helpers.CreateNewRuntimeHelper("runtime", logger)
 		docker.NetworkCreate(networkName, "")
+
+		res := cilium.PolicyEnforcementSet("default")
+		Expect(res.Correct()).Should(BeTrue())
+
 		initilized = true
 	}
 
@@ -38,7 +42,6 @@ var _ = Describe("RunPolicyEnforcement", func() {
 	})
 
 	AfterEach(func() {
-		return
 		docker.ContainerRm("app")
 	})
 
@@ -340,7 +343,12 @@ var _ = Describe("RunPolicies", func() {
 		logger.Info("Starting")
 		docker, cilium = helpers.CreateNewRuntimeHelper("runtime", logger)
 		docker.NetworkCreate(networkName, "")
+
+		res := cilium.PolicyEnforcementSet("default")
+		Expect(res.Correct()).Should(BeTrue())
+
 		initilized = true
+
 	}
 
 	BeforeEach(func() {
