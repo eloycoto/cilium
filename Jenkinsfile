@@ -18,12 +18,12 @@ pipeline {
                 parallel(
                     "Runtime":{
                         withEnv(["GOPATH=${WORKSPACE}", "TESTDIR=${WORKSPACE}/${PROJ_PATH}/test"]){
-                            sh 'cd ${TESTDIR}; ginkgo --focus="Run*" -v'
+                            sh 'cd ${TESTDIR}; ginkgo --focus="Run*" -v -noColor'
                         }
                     },
                     "K8s":{
                         withEnv(["GOPATH=${WORKSPACE}", "TESTDIR=${WORKSPACE}/${PROJ_PATH}/test"]){
-                            sh 'cd ${TESTDIR}; ginkgo --focus="K8s*" -v'
+                            sh 'cd ${TESTDIR}; ginkgo --focus="K8s*" -v -noColor'
                         }
                     },
                 )
