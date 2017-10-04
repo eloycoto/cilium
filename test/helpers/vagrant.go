@@ -52,7 +52,7 @@ func (vagrant *Vagrant) Create(scope string, ssh ...bool) error {
 }
 
 func (vagrant *Vagrant) createConfig(scope string) error {
-	cmd := vagrant.getCMD(fmt.Sprintf("vagrant ssh-config %s > ssh-config", scope))
+	cmd := vagrant.getCMD(fmt.Sprintf("vagrant ssh-config %s >> ssh-config", scope))
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		return err
