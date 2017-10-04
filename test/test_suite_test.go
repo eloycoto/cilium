@@ -45,11 +45,10 @@ func init() {
 func TestTest(t *testing.T) {
 	RegisterFailHandler(Fail)
 	junitReporter := reporters.NewJUnitReporter(fmt.Sprintf("%s.xml", ginkgoext.GetScope()))
-	RunSpecsWithDefaultAndCustomReporters(t, "Cilium Test Suite", []Reporter{junitReporter})
+	RunSpecsWithDefaultAndCustomReporters(t, ginkgoext.GetScope(), []Reporter{junitReporter})
 }
 
 var _ = BeforeSuite(func() {
-
 	scope := ginkgoext.GetScope()
 	switch scope {
 	case "runtime":
