@@ -3,6 +3,12 @@ pipeline {
     environment {
         PROJ_PATH = "src/github.com/cilium/cilium"
     }
+
+    options {
+        timeout(time: 120, unit: 'MINUTES')
+        timestamps()
+    }
+
     stages {
         stage('Checkout') {
             agent any
@@ -15,17 +21,17 @@ pipeline {
         }
         stage('Test') {
             agent any
+            environment {
+                GOPATH="${WORKSPACE}"
+                TESTDIR="${WORKSPACE}/${PROJ_PATH}/test"
+            }
             steps {
                 parallel(
                     "Runtime":{
-                        withEnv(["GOPATH=${WORKSPACE}", "TESTDIR=${WORKSPACE}/${PROJ_PATH}/test"]){
-                            sh 'cd ${TESTDIR}; ginkgo --focus="Run*" -v -noColor'
-                        }
+                        sh 'cd ${TESTDIR}; ginkgo --focus="Run*" -v -noColor'
                     },
                     "K8s":{
-                        withEnv(["GOPATH=${WORKSPACE}", "TESTDIR=${WORKSPACE}/${PROJ_PATH}/test"]){
-                            sh 'cd ${TESTDIR}; ginkgo --focus="K8s*" -v -noColor'
-                        }
+                        sh 'cd ${TESTDIR}; ginkgo --focus="K8s*" -v -noColor'
                     },
                 )
             }
