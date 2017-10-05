@@ -69,6 +69,7 @@ func (c *Cilium) EndpointWaitUntilReady() bool {
 		if invalid == 0 {
 			return true
 		}
+		c.logCxt.Infof("Endpoints are not ready valid='%d' invalid='%d'", valid, invalid)
 		Sleep(1)
 	}
 	return false
@@ -129,9 +130,11 @@ func (c *Cilium) PolicyEndpointsSummary() (map[string]int, error) {
 	return result, nil
 }
 
-func (c *Cilium) PolicyEnforcementSet(status string) *cmdRes {
+func (c *Cilium) PolicyEnforcementSet(status string, waitReady ...bool) *cmdRes {
 	res := c.Exec(fmt.Sprintf("config PolicyEnforcement=%s", status))
-	c.EndpointWaitUntilReady()
+	if len(waitReady) > 0 && waitReady[0] {
+		c.EndpointWaitUntilReady()
+	}
 	return res
 }
 

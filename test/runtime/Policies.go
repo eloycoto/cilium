@@ -28,7 +28,7 @@ var _ = Describe("RunPolicyEnforcement", func() {
 		docker, cilium = helpers.CreateNewRuntimeHelper("runtime", logger)
 		docker.NetworkCreate(networkName, "")
 
-		res := cilium.PolicyEnforcementSet("default")
+		res := cilium.PolicyEnforcementSet("default", false)
 		Expect(res.Correct()).Should(BeTrue())
 
 		initilized = true
@@ -36,8 +36,8 @@ var _ = Describe("RunPolicyEnforcement", func() {
 
 	BeforeEach(func() {
 		initilize()
-		cilium.Exec("policy delete --all")
 		docker.ContainerCreate("app", "cilium/demo-httpd", networkName, "-l id.app")
+		cilium.Exec("policy delete --all")
 		cilium.EndpointWaitUntilReady()
 	})
 
@@ -54,6 +54,7 @@ var _ = Describe("RunPolicyEnforcement", func() {
 		})
 
 		It("Default values", func() {
+
 			By("Policy Enforcement should be disabled for containers", func() {
 				endPoints, err := cilium.PolicyEndpointsSummary()
 				Expect(err).Should(BeNil())
@@ -344,7 +345,7 @@ var _ = Describe("RunPolicies", func() {
 		docker, cilium = helpers.CreateNewRuntimeHelper("runtime", logger)
 		docker.NetworkCreate(networkName, "")
 
-		res := cilium.PolicyEnforcementSet("default")
+		res := cilium.PolicyEnforcementSet("default", false)
 		Expect(res.Correct()).Should(BeTrue())
 
 		initilized = true
