@@ -85,3 +85,8 @@ func (res *cmdRes) KVOutput() map[string]string {
 func (res *cmdRes) Output() *bytes.Buffer {
 	return res.stdout
 }
+
+func (res *cmdRes) UnMarshal(data interface{}) error {
+	err := json.Unmarshal(res.stdout.Bytes(), &data)
+	return err
+}

@@ -2,7 +2,6 @@ package k8sT
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/cilium/cilium/test/helpers"
@@ -23,7 +22,6 @@ var _ = Describe("K8sTunnelTest", func() {
 		if initilized == true {
 			return
 		}
-
 		logger = log.WithFields(log.Fields{"test": "K8sTunnelTest"})
 		logger.Info("Starting")
 
@@ -43,7 +41,7 @@ var _ = Describe("K8sTunnelTest", func() {
 		kubectl.Delete(demoDSPath)
 	})
 
-	It("Check VXLAN mode", func() {
+	FIt("Check VXLAN mode", func() {
 		path := fmt.Sprintf("%s/cilium_ds.yaml", kubectl.ManifestsPath())
 		kubectl.Apply(path)
 		_, err := kubectl.WaitforPods("kube-system", "-l k8s-app=cilium", 5000)
@@ -54,9 +52,9 @@ var _ = Describe("K8sTunnelTest", func() {
 
 		//Check that cilium detects a
 		By("Checking that BPF tunnels are in place")
-		tunnelList, err := kubectl.CiliumExec(ciliumPod, "cilium bpf tunnel list | wc -l")
-		Expect(err).Should(BeNil())
-		Expect(strings.Trim(tunnelList, "\n")).Should(Equal("3"), tunnelList)
+		status := kubectl.CiliumExec(ciliumPod, "cilium bpf tunnel list | wc -l")
+		Expect(status.Correct()).Should(BeTrue())
+		Expect(status.IntOutput()).Should(Equal(3))
 
 		By("Checking that BPF tunnels are working correctly")
 		tunnStatus := isNodeNetworkingWorking(kubectl, "zgroup=testDS")
@@ -65,7 +63,7 @@ var _ = Describe("K8sTunnelTest", func() {
 		WaitToDeleteCilium(kubectl, logger)
 	}, 600)
 
-	It("Check Geneve mode", func() {
+	XIt("Check Geneve mode", func() {
 		path := fmt.Sprintf("%s/cilium_ds_geneve.yaml", kubectl.ManifestsPath())
 		kubectl.Apply(path)
 		_, err := kubectl.WaitforPods("kube-system", "-l k8s-app=cilium", 5000)
@@ -76,9 +74,9 @@ var _ = Describe("K8sTunnelTest", func() {
 
 		//Check that cilium detects a
 		By("Checking that BPF tunnels are in place")
-		tunnelList, err := kubectl.CiliumExec(ciliumPod, "cilium bpf tunnel list | wc -l")
-		Expect(err).Should(BeNil())
-		Expect(strings.Trim(tunnelList, "\n")).Should(Equal("3"))
+		status := kubectl.CiliumExec(ciliumPod, "cilium bpf tunnel list | wc -l")
+		Expect(status.Correct()).Should(BeTrue())
+		Expect(status.IntOutput()).Should(Equal(3))
 
 		By("Checking that BPF tunnels are working correctly")
 		tunnStatus := isNodeNetworkingWorking(kubectl, "zgroup=testDS")

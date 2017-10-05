@@ -12,7 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var _ = Describe("K8sTunnelTest", func() {
+var _ = Describe("K8sServicesTest", func() {
 
 	var kubectl *helpers.Kubectl
 	var logger *log.Entry
@@ -35,25 +35,32 @@ var _ = Describe("K8sTunnelTest", func() {
 
 	BeforeEach(func() {
 		initilize()
-		demoDSPath := fmt.Sprintf("%s/demo.yaml", kubectl.ManifestsPath())
-		kubectl.Apply(demoDSPath)
-		status, err := kubectl.WaitforPods("default", "-l zgroup=testapp", 300)
-		Expect(status).Should(BeTrue())
-		Expect(err).Should(BeNil())
-
 	})
 
 	It("Check Service", func() {
+		demoDSPath := fmt.Sprintf("%s/demo.yaml", kubectl.ManifestsPath())
+		kubectl.Apply(demoDSPath)
+		pods, err := kubectl.WaitforPods("default", "-l zgroup=testapp", 300)
+		Expect(pods).Should(BeTrue())
+		Expect(err).Should(BeNil())
+
 		svcIP, err := kubectl.Get(
 			"default", fmt.Sprintf("service %s", serviceName)).Filter("{.spec.clusterIP}")
 		Expect(err).Should(BeNil())
 		Expect(govalidator.IsIP(svcIP.String())).Should(BeTrue())
 
-		status := kubectl.Node.Execute(fmt.Sprintf("curl http://%s/", svcIP), nil, nil)
-		Expect(status).Should(BeTrue())
+		status := kubectl.Node.Exec(fmt.Sprintf("curl http://%s/", svcIP))
+		Expect(status.Correct()).Should(BeTrue())
 
-		//FIXME: Validate here that the cilium service list -o jsonpath='{.svc.IP:80}"'
-	})
+		ciliumPod, err := kubectl.GetCiliumPodOnNode("kube-system", "k8s1")
+		Expect(err).Should(BeNil())
+
+		service := kubectl.CiliumExec(ciliumPod, "cilium service list")
+		Expect(service.Output()).Should(ContainSubstring(svcIP.String()))
+		Expect(service.Correct()).Should(BeTrue())
+
+		kubectl.Delete(demoDSPath)
+	}, 300)
 
 	//FIXME: Check service with IPV6
 	//FIXME: Check the service with cross-node
