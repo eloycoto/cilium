@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"os"
@@ -41,4 +42,30 @@ func RenderTemplateToFile(filename string, tmplt string, perm os.FileMode) error
 		return err
 	}
 	return nil
+}
+
+type TimeoutConfig struct {
+	Ticker  time.Duration
+	Timeout time.Duration
+}
+
+func WithTimeout(body func() bool, msg string, config *TimeoutConfig) error {
+	if config.Ticker == 0 {
+		config.Ticker = 5
+	}
+
+	done := time.After(config.Timeout * time.Second)
+	ticker := time.NewTicker(config.Ticker * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			if body() {
+				return nil
+			}
+		case <-done:
+			return fmt.Errorf("Timeout reached: %s", msg)
+		}
+	}
 }

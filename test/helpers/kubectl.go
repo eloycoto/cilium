@@ -209,12 +209,13 @@ func (kub *Kubectl) CiliumEndpointsGetByTag(pod, tag string) (EndPointMap, error
 }
 
 func (kub *Kubectl) CiliumEndpointWait(pod string) bool {
-	for {
+
+	body := func() bool {
 		status, err := kub.CiliumEndpointsGet(pod).Filter("{[*].state}")
 		if err != nil {
-			Sleep(1)
-			continue
+			return false
 		}
+
 		var valid, invalid int
 		for _, endpoint := range strings.Split(status.String(), " ") {
 			if endpoint != "ready" {
@@ -226,12 +227,18 @@ func (kub *Kubectl) CiliumEndpointWait(pod string) bool {
 		if invalid == 0 {
 			return true
 		}
+
 		kub.logCxt.Infof(
-			"Waiting for cilium endpoints pod=%s valid='%d' invalid='%s'",
+			"waiting for cilium endpoints pod=%s valid='%d' invalid='%s'",
 			pod, valid, invalid)
-		Sleep(1)
+		return false
 	}
-	return false
+
+	err := WithTimeout(body, "Can't retrieve endpoints", &TimeoutConfig{Timeout: 100})
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 //CiliumExec run command into a cilium pod

@@ -64,6 +64,15 @@ var _ = Describe("K8sPolicyTest", func() {
 		helpers.Sleep(5)
 		kubectl.CiliumEndpointWait(ciliumPod)
 
+		epsStatus := helpers.WithTimeout(func() bool {
+			endpoints, err := kubectl.CiliumEndpointsGetByTag(ciliumPod, podFilter)
+			if err != nil {
+				return false
+			}
+			return endpoints.AreReady()
+		}, "Couldn't get endpoints", &helpers.TimeoutConfig{Timeout: 100})
+		Expect(epsStatus).Should(BeNil())
+
 		endpoints, err := kubectl.CiliumEndpointsGetByTag(ciliumPod, podFilter)
 		Expect(err).Should(BeNil())
 		Expect(endpoints.AreReady()).Should(BeTrue())
@@ -123,17 +132,42 @@ var _ = Describe("K8sPolicyTest", func() {
 		_, err = kubectl.CiliumImportPolicy("kube-system", l3Policy, 300)
 		Expect(err).Should(BeNil())
 
-		for {
-			// Check policy is applied correctly on pods
+		epsStatus := helpers.WithTimeout(func() bool {
 			endpoints, err := kubectl.CiliumEndpointsGetByTag(ciliumPod, podFilter)
-			ready := endpoints.AreReady()
-			Expect(err).Should(BeNil())
-			Expect(endpoints.AreReady()).Should(BeTrue())
-
-			if ready {
-				break
+			if err != nil {
+				return false
 			}
-		}
+			return endpoints.AreReady()
+		}, "Couldn't get endpoints", &helpers.TimeoutConfig{Timeout: 100})
+
+		Expect(epsStatus).Should(BeNil())
+		// done := time.After(40 * time.Second)
+		// ticker := time.NewTicker(5 * time.Second)
+		// defer ticker.Stop()
+
+		// for {
+		// 	select {
+		// 	case <-ticker.C:
+		// 		endpoints, err := kubectl.CiliumEndpointsGetByTag(ciliumPod, podFilter)
+		// 		Expect(err).Should(BeNil())
+		// 		ready := endpoints.AreReady()
+		// 		if ready {
+		// 			break
+		// 		}
+		// 	case <-done:
+		// 		Expect(false).Should(BeTrue(), "Can't get the endpoints")
+		// 	}
+		// }
+		// Check policy is applied correctly on pods
+		// endpoints, err := kubectl.CiliumEndpointsGetByTag(ciliumPod, podFilter)
+		// ready := endpoints.AreReady()
+
+		// Expect(err).Should(BeNil())
+		// Expect(endpoints.AreReady()).Should(BeTrue())
+		// if ready {
+		// 	break
+		// }
+		// }
 
 		endpoints, err := kubectl.CiliumEndpointsGetByTag(ciliumPod, podFilter)
 		policyStatus := endpoints.GetPolicyStatus()
