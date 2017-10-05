@@ -80,7 +80,7 @@ func (kubectl *Kubectl) Exec(namespace string, pod string, cmd string) (string, 
 	if exit == false {
 		// FIXME: Output here is important.
 		// Return the string is not fired on the assertion :\ Need to check
-		kubectl.logCxt.Infof(
+		kubectl.logCxt.Errorf(
 			"Exec command failed '%s' pod='%s' erro='%s'",
 			cmd, pod, stdout.String())
 		return "", fmt.Errorf("Exec: command '%s' failed '%s'", command, stdout.String())
@@ -135,34 +135,37 @@ func (kubectl *Kubectl) ManifestsPath() string {
 }
 
 //WaitforPods wait during timeout to get a pod ready
-func (kubectl *Kubectl) WaitforPods(namespace string, filter string, timeout int) (bool, error) {
-	wait := 0
-	var jsonPath = "{.items[*].status.containerStatuses[*].ready}"
-	for wait < timeout {
-		data, err := kubectl.GetPods(namespace, filter).Filter(jsonPath)
+func (kub *Kubectl) WaitforPods(namespace string, filter string, timeout time.Duration) (bool, error) {
+	body := func() bool {
+		var jsonPath = "{.items[*].status.containerStatuses[*].ready}"
+		data, err := kub.GetPods(namespace, filter).Filter(jsonPath)
 		if err != nil {
-			kubectl.logCxt.Warnf("WaitforPods: GetPods failed err='%s'", err)
-		} else {
-			valid := true
-			result := strings.Split(data.String(), " ")
-			for _, v := range result {
-				if val, _ := govalidator.ToBoolean(v); val == false {
-					valid = false
-					break
-				}
-			}
-			if valid == true {
-				return true, nil
+			kub.logCxt.Errorf("Coulnd't get pods: %s", err)
+			return false
+		}
+
+		valid := true
+		result := strings.Split(data.String(), " ")
+		for _, v := range result {
+			if val, _ := govalidator.ToBoolean(v); val == false {
+				valid = false
+				break
 			}
 		}
-		kubectl.logCxt.Infof(
-			"WaitForPods on namespace '%s' with filter '%s' is not ready timeout='%d' data='%s'",
-			namespace, filter, wait, data)
-		time.Sleep(1)
-		wait++
-	}
+		if valid == true {
+			return true
+		}
 
-	return false, nil
+		kub.logCxt.Infof(
+			"WaitForPods on namespace '%s' with filter '%s' is not ready data='%s'",
+			namespace, filter, data)
+		return false
+	}
+	err := WithTimeout(body, "Couldn't get Pods", &TimeoutConfig{Timeout: timeout})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 //Apply a new manifest using kubectl
