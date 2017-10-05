@@ -54,11 +54,11 @@ var _ = Describe("RunLB", func() {
 	BeforeEach(func() {
 		initilize()
 		cilium.Exec("service delete --all")
-	})
+	}, 500)
 
 	AfterEach(func() {
-		// containers("delete")
-	})
+		containers("delete")
+	}, 500)
 
 	It("Service Simple tests", func() {
 
@@ -127,7 +127,7 @@ var _ = Describe("RunLB", func() {
 		result = cilium.ServiceGet(10)
 		Expect(result.Correct()).Should(BeFalse(),
 			"Service was added and it shouldn't")
-	})
+	}, 500)
 
 	It("Service L3 tests", func() {
 		createInterface(docker.Node)
@@ -170,7 +170,7 @@ var _ = Describe("RunLB", func() {
 		By("Cilium L3 service with Ipv6 Reverse")
 		status = docker.ContainerExec("client", "ping6 -c 4 f00d::1:2")
 		Expect(status.Correct()).Should(BeTrue(), "L3 Proxy is not working IPv6")
-	})
+	}, 500)
 
 	It("Service L4 tests", func() {
 		// createInterface(docker.Node)
@@ -212,7 +212,7 @@ var _ = Describe("RunLB", func() {
 			fmt.Sprintf("%s:80", httpd2["IPv4"])}, 2)
 		Expect(status.Correct()).Should(BeFalse(),
 			"Service created with invalid data")
-	})
+	}, 500)
 })
 
 func createInterface(node *helpers.Node) error {
