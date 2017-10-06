@@ -455,6 +455,8 @@ var _ = Describe("RunPolicies", func() {
 		Expect(err).Should(BeNil())
 
 		path := helpers.GetFilePath("ingress.json")
+		res := docker.Node.Exec(fmt.Sprintf("cat %s", path))
+		logger.Infof("Ingress.json %s", res.Output())
 		defer os.Remove("ingress.json")
 		_, err = cilium.PolicyImport(path, 300)
 		Expect(err).Should(BeNil())

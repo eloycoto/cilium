@@ -44,10 +44,51 @@ func (c *Cilium) Exec(cmd string) *cmdRes {
 	}
 }
 
+func (c *Cilium) EndpointsGet(id string) *models.Endpoint {
+
+	var data []models.Endpoint
+	err := c.Exec(fmt.Sprintf("endpoint get %s", id)).UnMarshal(&data)
+	if err != nil {
+		c.logCxt.Infof("EndpointsGet fail %d: %s", id, err)
+		return nil
+	}
+	if len(data) > 0 {
+		return &data[0]
+	}
+	return nil
+}
+
 //EndPointSetConfig: set to a container endpoint a new config
 func (c *Cilium) EndpointSetConfig(container, option, value string) bool {
+	res := c.Exec(fmt.Sprintf(
+		"endpoint config %s | grep %s | awk '{print $1}'", container, option))
+
+	if res.SingleOut() == value {
+		return res.Correct()
+	}
+
+	before := c.EndpointsGet(container)
+	if before == nil {
+		return false
+	}
 	data := c.Exec(fmt.Sprintf("endpoint config %s %s=%s", container, option, value))
-	return data.Correct()
+	if !data.Correct() {
+		c.logCxt.Infof("Can't set endoint '%d' config %s=%s", container, option, value)
+		return false
+	}
+	err := WithTimeout(func() bool {
+		status := c.EndpointsGet(container)
+		if len(status.Status) > len(before.Status) {
+			return true
+		}
+		c.logCxt.Infof("Endpoint %d is not regenerated", container)
+		return false
+	}, "Endpoint is not regenerated", &TimeoutConfig{Timeout: 100})
+	if err != nil {
+		c.logCxt.Infof("Endpoint set failed:%s", err)
+		return false
+	}
+	return true
 }
 
 //EndpointWaitUntilReady: This function wait until all the endpoints are in the ready status
