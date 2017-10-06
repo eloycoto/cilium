@@ -48,6 +48,7 @@ var _ = Describe("RunConnectivyTest", func() {
 	}, 150)
 
 	AfterEach(func() {
+		return
 		docker.ContainerRm("client")
 		docker.ContainerRm("server")
 		return
@@ -104,6 +105,29 @@ var _ = Describe("RunConnectivyTest", func() {
 		ping := docker.Node.Execute(fmt.Sprintf("ping -c 4 %s", serverIP), nil, nil)
 		Expect(ping).Should(BeTrue())
 	}, 300)
+
+	It("Test containers NAT46 connectivity ", func() {
+
+		endpoints, err := cilium.GetEndpointsIds()
+		Expect(err).Should(BeNil(), "Couldn't get endpoints IDS")
+
+		server, err := docker.ContainerInspectNet("server")
+		Expect(err).Should(BeNil())
+
+		client, err := docker.ContainerInspectNet("client")
+		Expect(err).Should(BeNil())
+
+		status := cilium.EndpointSetConfig(endpoints["client"], "NAT46", "true")
+		Expect(status).Should(BeTrue())
+
+		res := docker.ContainerExec("client", fmt.Sprintf(
+			"ping6 -c 4 ::FFFF:%s", server["IPv4"]))
+		Expect(res.Correct()).Should(BeTrue())
+
+		res = docker.ContainerExec("server", fmt.Sprintf(
+			"ping6 -c 4 ::FFFF:%s", client["IPv4"]))
+		Expect(res.Correct()).Should(BeFalse(), "Unexpected NAT46 access")
+	})
 })
 
 var _ = Describe("RunConntrackTest", func() {

@@ -46,7 +46,6 @@ func (c *Cilium) Exec(cmd string) *cmdRes {
 //EndPointSetConfig: set to a container endpoint a new config
 func (c *Cilium) EndpointSetConfig(container, option, value string) bool {
 	data := c.Exec(fmt.Sprintf("endpoint config %s %s=%s", container, option, value))
-	fmt.Printf("%v", data)
 	return data.Correct()
 }
 
