@@ -120,6 +120,9 @@ var _ = Describe("RunConnectivyTest", func() {
 		status := cilium.EndpointSetConfig(endpoints["client"], "NAT46", "true")
 		Expect(status).Should(BeTrue())
 
+		status = cilium.EndpointWaitUntilReady()
+		Expect(status).Should(BeTrue())
+
 		res := docker.ContainerExec("client", fmt.Sprintf(
 			"ping6 -c 4 ::FFFF:%s", server["IPv4"]))
 		Expect(res.Correct()).Should(BeTrue())

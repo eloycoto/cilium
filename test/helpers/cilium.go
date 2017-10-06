@@ -51,11 +51,13 @@ func (c *Cilium) EndpointSetConfig(container, option, value string) bool {
 
 //EndpointWaitUntilReady: This function wait until all the endpoints are in the ready status
 func (c *Cilium) EndpointWaitUntilReady() bool {
-	for {
+
+	logger := c.logCxt.WithFields(log.Fields{"EndpointWaitReady": ""})
+	body := func() bool {
 		status, err := c.GetEndpoints().Filter("{[*].state}")
 		if err != nil {
-			Sleep(1)
-			continue
+			logger.Infof("Can't get endpoints")
+			return false
 		}
 		var valid, invalid int
 		for _, endpoint := range strings.Split(status.String(), " ") {
@@ -68,10 +70,14 @@ func (c *Cilium) EndpointWaitUntilReady() bool {
 		if invalid == 0 {
 			return true
 		}
-		c.logCxt.Infof("Endpoints are not ready valid='%d' invalid='%d'", valid, invalid)
-		Sleep(1)
+		logger.Info("Endpoints are not ready valid='%d' invalid='%d'", valid, invalid)
+		return true
 	}
-	return false
+	err := WithTimeout(body, "Endpoints are not ready", &TimeoutConfig{Timeout: 300})
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 //GetEndpoints: Return the endpoints in jsonFormat
