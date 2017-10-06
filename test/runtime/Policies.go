@@ -80,7 +80,7 @@ var _ = Describe("RunPolicyEnforcement", func() {
 
 			By("Setting to Always")
 
-			res := cilium.PolicyEnforcementSet("always")
+			res := cilium.PolicyEnforcementSet("always", true)
 			Expect(res.Correct()).Should(BeTrue())
 
 			endPoints, err = cilium.PolicyEndpointsSummary()
@@ -88,7 +88,7 @@ var _ = Describe("RunPolicyEnforcement", func() {
 			Expect(endPoints["enabled"]).To(Equal(1))
 
 			By("Setting to default from Always")
-			res = cilium.PolicyEnforcementSet("default")
+			res = cilium.PolicyEnforcementSet("default", true)
 			Expect(res.Correct()).Should(BeTrue())
 
 			endPoints, err = cilium.PolicyEndpointsSummary()
@@ -97,26 +97,22 @@ var _ = Describe("RunPolicyEnforcement", func() {
 		})
 
 		It("Default to Always with policy", func() {
+			_, err := cilium.PolicyImport(cilium.GetFullPath("sample_policy.json"), 300)
+			Expect(err).Should(BeNil())
+
 			endPoints, err := cilium.PolicyEndpointsSummary()
-			Expect(err).Should(BeNil())
-			Expect(endPoints["disabled"]).To(Equal(1))
-
-			_, err = cilium.PolicyImport(cilium.GetFullPath("sample_policy.json"), 300)
-			Expect(err).Should(BeNil())
-
-			endPoints, err = cilium.PolicyEndpointsSummary()
 			Expect(err).Should(BeNil())
 			Expect(endPoints["enabled"]).To(Equal(1))
 			//DEfault =APP with PolicyEnforcement
 
-			res := cilium.PolicyEnforcementSet("always")
+			res := cilium.PolicyEnforcementSet("always", true)
 			Expect(res.Correct()).Should(BeTrue())
 
 			endPoints, err = cilium.PolicyEndpointsSummary()
 			Expect(err).Should(BeNil())
 			Expect(endPoints["enabled"]).To(Equal(1))
 
-			res = cilium.PolicyEnforcementSet("default")
+			res = cilium.PolicyEnforcementSet("default", true)
 			Expect(res.Correct()).Should(BeTrue())
 
 			endPoints, err = cilium.PolicyEndpointsSummary()
@@ -129,15 +125,12 @@ var _ = Describe("RunPolicyEnforcement", func() {
 			Expect(err).Should(BeNil())
 			Expect(endPoints["disabled"]).To(Equal(1))
 
-			res := cilium.PolicyEnforcementSet("never")
+			res := cilium.PolicyEnforcementSet("never", true)
 			Expect(res.Correct()).Should(BeTrue())
 
 			endPoints, err = cilium.PolicyEndpointsSummary()
 			Expect(err).Should(BeNil())
 			Expect(endPoints["disabled"]).To(Equal(1))
-
-			res = cilium.PolicyEnforcementSet("default")
-			Expect(res.Correct()).Should(BeTrue())
 
 			endPoints, err = cilium.PolicyEndpointsSummary()
 			Expect(err).Should(BeNil())
@@ -145,25 +138,22 @@ var _ = Describe("RunPolicyEnforcement", func() {
 		})
 
 		It("Default to Never with policy", func() {
+
+			_, err := cilium.PolicyImport(cilium.GetFullPath("sample_policy.json"), 300)
+			Expect(err).Should(BeNil())
+
 			endPoints, err := cilium.PolicyEndpointsSummary()
-			Expect(err).Should(BeNil())
-			Expect(endPoints["disabled"]).To(Equal(1))
-
-			_, err = cilium.PolicyImport(cilium.GetFullPath("sample_policy.json"), 300)
-			Expect(err).Should(BeNil())
-
-			endPoints, err = cilium.PolicyEndpointsSummary()
 			Expect(err).Should(BeNil())
 			Expect(endPoints["enabled"]).To(Equal(1))
 
-			res := cilium.PolicyEnforcementSet("never")
+			res := cilium.PolicyEnforcementSet("never", true)
 			Expect(res.Correct()).Should(BeTrue())
 
 			endPoints, err = cilium.PolicyEndpointsSummary()
 			Expect(err).Should(BeNil())
 			Expect(endPoints["enabled"]).To(Equal(0))
 
-			res = cilium.PolicyEnforcementSet("default")
+			res = cilium.PolicyEnforcementSet("default", true)
 			Expect(res.Correct()).Should(BeTrue())
 
 			endPoints, err = cilium.PolicyEndpointsSummary()
@@ -176,7 +166,7 @@ var _ = Describe("RunPolicyEnforcement", func() {
 		//The test Always to Default is already tested in from default-always
 		BeforeEach(func() {
 			initilize()
-			res := cilium.PolicyEnforcementSet("always")
+			res := cilium.PolicyEnforcementSet("always", true)
 			Expect(res.Correct()).Should(BeTrue())
 		})
 
@@ -189,7 +179,6 @@ var _ = Describe("RunPolicyEnforcement", func() {
 
 			By("Create a new container")
 			docker.ContainerCreate("new", "cilium/demo-httpd", networkName, "-l id.new")
-			cilium.EndpointWaitUntilReady()
 			endPoints, err = cilium.PolicyEndpointsSummary()
 			Expect(err).Should(BeNil())
 			Expect(endPoints["enabled"]).To(Equal(2))
@@ -211,14 +200,14 @@ var _ = Describe("RunPolicyEnforcement", func() {
 			Expect(endPoints["enabled"]).To(Equal(1))
 			Expect(endPoints["disabled"]).To(Equal(0))
 
-			res := cilium.PolicyEnforcementSet("never")
+			res := cilium.PolicyEnforcementSet("never", true)
 			Expect(res.Correct()).Should(BeTrue())
 
 			endPoints, err = cilium.PolicyEndpointsSummary()
 			Expect(err).Should(BeNil())
 			Expect(endPoints["enabled"]).To(Equal(0))
 
-			res = cilium.PolicyEnforcementSet("always")
+			res = cilium.PolicyEnforcementSet("always", true)
 			Expect(res.Correct()).Should(BeTrue())
 
 			endPoints, err = cilium.PolicyEndpointsSummary()
@@ -232,7 +221,7 @@ var _ = Describe("RunPolicyEnforcement", func() {
 			Expect(endPoints["enabled"]).To(Equal(1))
 			Expect(endPoints["disabled"]).To(Equal(0))
 
-			res := cilium.PolicyEnforcementSet("never")
+			res := cilium.PolicyEnforcementSet("never", true)
 			Expect(res.Correct()).Should(BeTrue())
 
 			endPoints, err = cilium.PolicyEndpointsSummary()
@@ -240,7 +229,7 @@ var _ = Describe("RunPolicyEnforcement", func() {
 			Expect(endPoints["enabled"]).To(Equal(0))
 			Expect(endPoints["disabled"]).To(Equal(1))
 
-			res = cilium.PolicyEnforcementSet("always")
+			res = cilium.PolicyEnforcementSet("always", true)
 			Expect(res.Correct()).Should(BeTrue())
 
 			endPoints, err = cilium.PolicyEndpointsSummary()
@@ -288,7 +277,7 @@ var _ = Describe("RunPolicyEnforcement", func() {
 			Expect(endPoints["enabled"]).To(Equal(0))
 			Expect(endPoints["disabled"]).To(Equal(1))
 
-			res := cilium.PolicyEnforcementSet("default")
+			res := cilium.PolicyEnforcementSet("default", true)
 			Expect(res.Correct()).Should(BeTrue())
 
 			endPoints, err = cilium.PolicyEndpointsSummary()
@@ -296,7 +285,7 @@ var _ = Describe("RunPolicyEnforcement", func() {
 			Expect(endPoints["enabled"]).To(Equal(1))
 			Expect(endPoints["disabled"]).To(Equal(0))
 
-			res = cilium.PolicyEnforcementSet("never")
+			res = cilium.PolicyEnforcementSet("never", true)
 			Expect(res.Correct()).Should(BeTrue())
 
 			endPoints, err = cilium.PolicyEndpointsSummary()
@@ -311,7 +300,7 @@ var _ = Describe("RunPolicyEnforcement", func() {
 			Expect(endPoints["enabled"]).To(Equal(0))
 			Expect(endPoints["disabled"]).To(Equal(1))
 
-			res := cilium.PolicyEnforcementSet("default")
+			res := cilium.PolicyEnforcementSet("default", true)
 			Expect(res.Correct()).Should(BeTrue())
 
 			endPoints, err = cilium.PolicyEndpointsSummary()
@@ -319,7 +308,7 @@ var _ = Describe("RunPolicyEnforcement", func() {
 			Expect(endPoints["enabled"]).To(Equal(0))
 			Expect(endPoints["disabled"]).To(Equal(1))
 
-			res = cilium.PolicyEnforcementSet("never")
+			res = cilium.PolicyEnforcementSet("never", true)
 			Expect(res.Correct()).Should(BeTrue())
 
 			endPoints, err = cilium.PolicyEndpointsSummary()
@@ -347,9 +336,9 @@ var _ = Describe("RunPolicies", func() {
 		docker, cilium = helpers.CreateNewRuntimeHelper("runtime", logger)
 		docker.NetworkCreate(networkName, "")
 
+		cilium.WaitUntilReady(100)
 		res := cilium.PolicyEnforcementSet("default", false)
 		Expect(res.Correct()).Should(BeTrue())
-
 		initilized = true
 
 	}

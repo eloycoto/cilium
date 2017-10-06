@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cilium/cilium/api/v1/models"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -50,23 +51,50 @@ func (c *Cilium) EndpointSetConfig(container, option, value string) bool {
 }
 
 //EndpointWaitUntilReady: This function wait until all the endpoints are in the ready status
-func (c *Cilium) EndpointWaitUntilReady() bool {
+func (c *Cilium) EndpointWaitUntilReady(validation ...bool) bool {
 
 	logger := c.logCxt.WithFields(log.Fields{"EndpointWaitReady": ""})
+
+	getEpsStatus := func(data []models.Endpoint) map[int64]int {
+		result := make(map[int64]int)
+		for _, v := range data {
+			result[v.ID] = len(v.Status)
+		}
+		return result
+	}
+
+	var data []models.Endpoint
+
+	if err := c.GetEndpoints().UnMarshal(&data); err != nil {
+		logger.Info("Can't get original endpoints: %s", err)
+		Sleep(5)
+		return c.EndpointWaitUntilReady(validation...)
+	}
+	epsStatus := getEpsStatus(data)
+
 	body := func() bool {
-		status, err := c.GetEndpoints().Filter("{[*].state}")
-		if err != nil {
-			logger.Infof("Can't get endpoints")
+		var data []models.Endpoint
+
+		if err := c.GetEndpoints().UnMarshal(&data); err != nil {
+			logger.Info("Can't get endpoints: %s", err)
 			return false
 		}
 		var valid, invalid int
-		for _, endpoint := range strings.Split(status.String(), " ") {
-			if endpoint != "ready" {
+		for _, eps := range data {
+			fmt.Printf("%v", eps.State)
+			if eps.State != "ready" {
 				invalid++
 			} else {
 				valid++
 			}
+			if len(validation) > 0 && validation[0] {
+				if originalVal, _ := epsStatus[eps.ID]; len(eps.Status) <= originalVal {
+					logger.Infof("Endpoint '%d' is not regenerated", eps.ID)
+					return false
+				}
+			}
 		}
+
 		if invalid == 0 {
 			return true
 		}
@@ -136,9 +164,14 @@ func (c *Cilium) PolicyEndpointsSummary() (map[string]int, error) {
 }
 
 func (c *Cilium) PolicyEnforcementSet(status string, waitReady ...bool) *cmdRes {
-	res := c.Exec(fmt.Sprintf("config PolicyEnforcement=%s", status))
+	//We check before, if not EndpointWait will be fail due no changes on eps.Status
+	res := c.Exec("config | grep PolicyEnforcement | awk '{print $2}'")
+	if res.SingleOut() == status {
+		return res
+	}
+	res = c.Exec(fmt.Sprintf("config PolicyEnforcement=%s", status))
 	if len(waitReady) > 0 && waitReady[0] {
-		c.EndpointWaitUntilReady()
+		c.EndpointWaitUntilReady(true)
 	}
 	return res
 }

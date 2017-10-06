@@ -28,6 +28,10 @@ func (res *cmdRes) IntOutput() (int, error) {
 	return strconv.Atoi(strings.Trim(res.stdout.String(), "\n"))
 }
 
+func (res *cmdRes) SingleOut() string {
+	return strings.Trim(res.stdout.String(), "\n")
+}
+
 func (res *cmdRes) FindResults(filter string) ([]reflect.Value, error) {
 
 	var data interface{}
