@@ -48,7 +48,6 @@ var _ = Describe("RunConnectivyTest", func() {
 	}, 150)
 
 	AfterEach(func() {
-		return
 		docker.ContainerRm("client")
 		docker.ContainerRm("server")
 		return
@@ -120,7 +119,7 @@ var _ = Describe("RunConnectivyTest", func() {
 		status := cilium.EndpointSetConfig(endpoints["client"], "NAT46", "true")
 		Expect(status).Should(BeTrue())
 
-		status = cilium.EndpointWaitUntilReady()
+		status = cilium.EndpointWaitUntilReady(true)
 		Expect(status).Should(BeTrue())
 
 		res := docker.ContainerExec("client", fmt.Sprintf(

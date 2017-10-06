@@ -81,7 +81,6 @@ func (c *Cilium) EndpointWaitUntilReady(validation ...bool) bool {
 		}
 		var valid, invalid int
 		for _, eps := range data {
-			fmt.Printf("%v", eps.State)
 			if eps.State != "ready" {
 				invalid++
 			} else {
