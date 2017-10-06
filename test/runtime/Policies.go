@@ -2,6 +2,7 @@ package RunT
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/cilium/cilium/test/helpers"
 	. "github.com/onsi/ginkgo"
@@ -434,15 +435,73 @@ var _ = Describe("RunPolicies", func() {
 		// APP3 can reach using TCP HTTP2, but can't ping EGRESS
 		connectivityTest([]string{"http", "http6"}, "app3", "httpd3", BeTrue)
 
+		By("Disabling all the policies. All should work")
+
 		status := cilium.Exec("policy delete --all")
 		Expect(status.Correct()).Should(BeTrue())
 		cilium.EndpointWaitUntilReady()
 
-		By("Disabling all the policies. All should work")
 		connectivityTest([]string{"ping", "ping6", "http", "http6"}, "app1", "httpd1", BeTrue)
 		connectivityTest([]string{"ping", "ping6", "http", "http6"}, "app2", "httpd1", BeTrue)
-	})
 
+		By("Ingress CIDR")
+
+		app1, err := docker.ContainerInspectNet("app1")
+		Expect(err).Should(BeNil())
+
+		script := fmt.Sprintf(`
+		[{
+			"endpointSelector": {
+				"matchLabels":{"id.httpd1":""}
+			},
+			"ingress": [{
+				"fromEndpoints": [
+					{ "matchLabels": {"id.app1": ""}}
+				],
+				"fromCIDR": [ "%s/32", "%s" ]
+			}]
+		}]`, app1["IPv4"], app1["IPv6"])
+
+		helpers.RenderTemplateToFile("ingress_ipv4.json", script, 0777)
+		path := helpers.GetFilePath("ingress_ipv4.json")
+		defer os.Remove("ingress_ipv4.json")
+		_, err = cilium.PolicyImport(path, 300)
+		Expect(err).Should(BeNil())
+
+		connectivityTest([]string{"http", "http6"}, "app1", "httpd1", BeTrue)
+		connectivityTest([]string{"http", "http6"}, "app2", "httpd1", BeFalse)
+
+		By("Egress CIDR")
+
+		httpd1, err := docker.ContainerInspectNet("httpd1")
+		Expect(err).Should(BeNil())
+
+		script = fmt.Sprintf(`
+		[{
+			"endpointSelector": {
+				"matchLabels":{"id.httpd1":""}
+			},
+			"ingress": [{
+				"fromEndpoints": [{"matchLabels":{"id.app1":""}}]
+			}]
+		},
+		{
+			 "endpointSelector":
+				{"matchLabels":{"id.%s":""}},
+			 "egress": [{
+				"toCIDR": [ "%s/32", "%s" ]
+			 }]
+		}]`, "app1", httpd1["IPv4"], httpd1["IPv6"])
+		helpers.RenderTemplateToFile("egress_ipv4.json", script, 0777)
+		path = helpers.GetFilePath("egress_ipv4.json")
+		defer os.Remove("egress_ipv4.json")
+		_, err = cilium.PolicyImport(path, 300)
+		Expect(err).Should(BeNil())
+
+		connectivityTest([]string{"http", "http6"}, "app1", "httpd1", BeTrue)
+		connectivityTest([]string{"http", "http6"}, "app2", "httpd1", BeFalse)
+
+	})
 	It("L7 Checks", func() {
 
 		_, err := cilium.PolicyImport(cilium.GetFullPath("l7-simple.json"), 300)
