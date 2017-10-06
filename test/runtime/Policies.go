@@ -394,13 +394,13 @@ var _ = Describe("RunPolicies", func() {
 				res := docker.ContainerExec(client, fmt.Sprintf(
 					"curl -s --fail --connect-timeout 3 http://%s:80/private", srvIP["IPv4"]))
 				Expect(res.Correct()).Should(assertFn(), fmt.Sprintf(
-					"Client '%s' can't curl to server '%s'", client, srvIP["IPv4"]))
+					"Client '%s' can't curl to server '%s' private", client, srvIP["IPv4"]))
 			case "http6_private":
 				By(title("Client '%s' HttpReq to server '%s' Ipv6"))
 				res := docker.ContainerExec(client, fmt.Sprintf(
 					"curl -s --fail --connect-timeout 3 http://%s:80/private", srvIP["IPv6"]))
 				Expect(res.Correct()).Should(assertFn(), fmt.Sprintf(
-					"Client '%s' can't curl to server '%s'", client, srvIP["IPv6"]))
+					"Client '%s' can't curl to server '%s' private", client, srvIP["IPv6"]))
 			}
 		}
 	}
@@ -451,11 +451,11 @@ var _ = Describe("RunPolicies", func() {
 			}]
 		}]`, app1["IPv4"], app1["IPv6"])
 
-		err = helpers.RenderTemplateToFile("ingress_ipv4.json", script, 0777)
+		err = helpers.RenderTemplateToFile("ingress.json", script, 0777)
 		Expect(err).Should(BeNil())
 
-		path := helpers.GetFilePath("ingress_ipv4.json")
-		defer os.Remove("ingress_ipv4.json")
+		path := helpers.GetFilePath("ingress.json")
+		defer os.Remove("ingress.json")
 		_, err = cilium.PolicyImport(path, 300)
 		Expect(err).Should(BeNil())
 
@@ -483,10 +483,10 @@ var _ = Describe("RunPolicies", func() {
 				"toCIDR": [ "%s/32", "%s" ]
 			 }]
 		}]`, "app1", httpd1["IPv4"], httpd1["IPv6"])
-		err = helpers.RenderTemplateToFile("egress_ipv4.json", script, 0777)
+		err = helpers.RenderTemplateToFile("egress.json", script, 0777)
 		Expect(err).Should(BeNil())
-		path = helpers.GetFilePath("egress_ipv4.json")
-		defer os.Remove("egress_ipv4.json")
+		path = helpers.GetFilePath("egress.json")
+		defer os.Remove("egress.json")
 		_, err = cilium.PolicyImport(path, 300)
 		Expect(err).Should(BeNil())
 

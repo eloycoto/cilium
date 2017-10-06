@@ -184,8 +184,7 @@ func (c *Cilium) PolicyGetRevision() (int, error) {
 
 //PolicyImport: Import a new policy in cilium and wait until all endpoints
 // get the policy apply.
-func (c *Cilium) PolicyImport(path string, timeout int) (int, error) {
-	var wait int
+func (c *Cilium) PolicyImport(path string, timeout time.Duration) (int, error) {
 	revision, err := c.PolicyGetRevision()
 	if err != nil {
 		return -1, fmt.Errorf("Can't get policy revision: %s", err)
@@ -193,19 +192,24 @@ func (c *Cilium) PolicyImport(path string, timeout int) (int, error) {
 
 	res := c.Exec(fmt.Sprintf("policy import %s", path))
 	if res.Correct() == false {
-		return -1, fmt.Errorf("Can't import policy %s", path)
+		c.logCxt.Errorf("Couldn't import policy %s", res.Output())
+		return -1, fmt.Errorf("Couldn't import policy %s", path)
 	}
-
-	for wait < timeout {
+	body := func() bool {
 		current_rev, _ := c.PolicyGetRevision()
 		if current_rev > revision {
 			c.PolicyWait(current_rev)
-			return current_rev, nil
+			return true
 		}
-		time.Sleep(1 * time.Second)
-		wait++
+		c.logCxt.Infof("PolicyImport: current revision %d same as %d", current_rev, revision)
+		return false
 	}
-	return -1, fmt.Errorf("Can't import Policy revision %s", path)
+	err = WithTimeout(body, "Couldn't import policy revision", &TimeoutConfig{Timeout: timeout})
+	if err != nil {
+		return -1, err
+	}
+	revision, err = c.PolicyGetRevision()
+	return revision, err
 }
 
 func (c *Cilium) PolicyWait(id int) *cmdRes {
