@@ -44,6 +44,7 @@ var _ = Describe("K8sPolicyTest", func() {
 
 	BeforeEach(func() {
 		initilize()
+		kubectl.CiliumPolicyDeleteAll("kube-system")
 		kubectl.Apply(demoPath)
 		_, err := kubectl.WaitforPods("default", "-l zgroup=testapp", 300)
 		Expect(err).Should(BeNil())
@@ -141,38 +142,11 @@ var _ = Describe("K8sPolicyTest", func() {
 		}, "Couldn't get endpoints", &helpers.TimeoutConfig{Timeout: 100})
 
 		Expect(epsStatus).Should(BeNil())
-		// done := time.After(40 * time.Second)
-		// ticker := time.NewTicker(5 * time.Second)
-		// defer ticker.Stop()
-
-		// for {
-		// 	select {
-		// 	case <-ticker.C:
-		// 		endpoints, err := kubectl.CiliumEndpointsGetByTag(ciliumPod, podFilter)
-		// 		Expect(err).Should(BeNil())
-		// 		ready := endpoints.AreReady()
-		// 		if ready {
-		// 			break
-		// 		}
-		// 	case <-done:
-		// 		Expect(false).Should(BeTrue(), "Can't get the endpoints")
-		// 	}
-		// }
-		// Check policy is applied correctly on pods
-		// endpoints, err := kubectl.CiliumEndpointsGetByTag(ciliumPod, podFilter)
-		// ready := endpoints.AreReady()
-
-		// Expect(err).Should(BeNil())
-		// Expect(endpoints.AreReady()).Should(BeTrue())
-		// if ready {
-		// 	break
-		// }
-		// }
 
 		endpoints, err := kubectl.CiliumEndpointsGetByTag(ciliumPod, podFilter)
 		policyStatus := endpoints.GetPolicyStatus()
-		Expect(policyStatus["enabled"]).Should(Equal(1))
-		Expect(policyStatus["disabled"]).Should(Equal(0))
+		Expect(policyStatus["enabled"]).Should(Equal(2))
+		Expect(policyStatus["disabled"]).Should(Equal(2))
 
 		_, err = kubectl.Exec(
 			"default", appPods["app2"], fmt.Sprintf("curl http://%s/public", clusterIP))

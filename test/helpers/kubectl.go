@@ -317,6 +317,42 @@ func (kub *Kubectl) CiliumImportPolicy(namespace string, filepath string, timeou
 	return "", fmt.Errorf("ImportPolicy error due timeout '%d'", timeout)
 }
 
+func (kub *Kubectl) CiliumPolicyDeleteAll(namespace string) error {
+	var revision int
+	pods, err := kub.GetCiliumPods(namespace)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range pods {
+		revi, err := kub.CiliumPolicyRevision(v)
+		if err != nil {
+			return err
+		}
+
+		if revi > revision {
+			revision = revi
+		}
+	}
+	podA := pods[0]
+	_, err = kub.Exec(namespace, podA, "cilium policy delete --all")
+	if err != nil {
+		return err
+	}
+	newRevision, err := kub.CiliumPolicyRevision(podA)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range pods {
+		_, err := kub.Exec(namespace, v, fmt.Sprintf("cilium policy wait %d ", newRevision))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 //GetCiliumPodOnNode Returns cilium pod name that is running on specific node
 func (kub *Kubectl) GetCiliumPodOnNode(namespace string, node string) (string, error) {
 	filter := fmt.Sprintf(

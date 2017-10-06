@@ -26,7 +26,7 @@ var _ = Describe("RunConnectivyTest", func() {
 		logger = log.WithFields(log.Fields{"test": "RunConnectivyTest"})
 		logger.Info("Starting")
 		docker, cilium = helpers.CreateNewRuntimeHelper("runtime", logger)
-		docker.NetworkDelete(networkName)
+		cilium.WaitUntilReady(100)
 		docker.NetworkCreate(networkName, "")
 		initilized = true
 	}
@@ -37,13 +37,14 @@ var _ = Describe("RunConnectivyTest", func() {
 		docker.ContainerCreate("server", netperfImage, networkName, "-l id.server")
 		cilium.Exec("policy delete --all")
 		cilium.EndpointWaitUntilReady()
-		for {
-			if data, _ := cilium.GetEndpointsNames(); len(data) >= 2 {
+		err := helpers.WithTimeout(func() bool {
+			if data, _ := cilium.GetEndpointsNames(); len(data) < 2 {
 				logger.Info("Waiting for endpoints to be ready")
-				return
+				return false
 			}
-			helpers.Sleep(1)
-		}
+			return true
+		}, "Endpoints are not ready", &helpers.TimeoutConfig{Timeout: 150})
+		Expect(err).Should(BeNil())
 	}, 150)
 
 	AfterEach(func() {

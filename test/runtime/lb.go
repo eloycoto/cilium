@@ -27,6 +27,7 @@ var _ = Describe("RunLB", func() {
 		logger = log.WithFields(log.Fields{"test": "RunLB"})
 		logger.Info("Starting")
 		docker, cilium = helpers.CreateNewRuntimeHelper("runtime", logger)
+		cilium.WaitUntilReady(100)
 		docker.NetworkCreate(networkName, "")
 		initilized = true
 	}
@@ -73,8 +74,10 @@ var _ = Describe("RunLB", func() {
 		Expect(result.Output()).Should(ContainSubstring("[::1]:90"), fmt.Sprintf(
 			"No service backends added correctly '%s'", result.Output()))
 
+		helpers.Sleep(5)
+		//FIXME: This need to be with Wait,Timeout
 		//Checking that bpf lb list is working correctly
-		result = cilium.Exec("cilium bpf lb list")
+		result = cilium.Exec("bpf lb list")
 		Expect(result.Correct()).Should(BeTrue(),
 			"Service can't be retrieved correctly")
 		Expect(result.Output()).Should(ContainSubstring("[::1]:90"), fmt.Sprintf(

@@ -191,3 +191,14 @@ func (c *Cilium) ServiceGet(id int) *cmdRes {
 func (c *Cilium) ServiceDel(id int) *cmdRes {
 	return c.Exec(fmt.Sprintf("service delete '%d'", id))
 }
+
+func (c *Cilium) WaitUntilReady(timeout time.Duration) error {
+
+	body := func() bool {
+		res := c.Node.Exec("sudo cilium status")
+		c.logCxt.Info("Cilium status is %t", res.Correct())
+		return res.Correct()
+	}
+	err := WithTimeout(body, "Cilium is not ready", &TimeoutConfig{Timeout: timeout})
+	return err
+}

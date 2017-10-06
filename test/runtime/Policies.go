@@ -26,6 +26,7 @@ var _ = Describe("RunPolicyEnforcement", func() {
 		logger = log.WithFields(log.Fields{"test": "RunPolicyEnforcement"})
 		logger.Info("Starting")
 		docker, cilium = helpers.CreateNewRuntimeHelper("runtime", logger)
+		cilium.WaitUntilReady(100)
 		docker.NetworkCreate(networkName, "")
 
 		res := cilium.PolicyEnforcementSet("default", false)
