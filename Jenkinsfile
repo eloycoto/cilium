@@ -30,9 +30,9 @@ pipeline {
                     "Runtime":{
                         sh 'cd ${TESTDIR}; ginkgo --focus="Run*" -v -noColor'
                     },
-                    "K8s":{
-                        sh 'cd ${TESTDIR}; ginkgo --focus="K8s*" -v -noColor'
-                    },
+                    /* "K8s":{ */
+                    /*     sh 'cd ${TESTDIR}; ginkgo --focus="K8s*" -v -noColor' */
+                    /* }, */
                 )
             }
             post {
