@@ -462,7 +462,9 @@ var _ = Describe("RunPolicies", func() {
 			}]
 		}]`, app1["IPv4"], app1["IPv6"])
 
-		helpers.RenderTemplateToFile("ingress_ipv4.json", script, 0777)
+		err = helpers.RenderTemplateToFile("ingress_ipv4.json", script, 0777)
+		Expect(err).Should(BeNil())
+
 		path := helpers.GetFilePath("ingress_ipv4.json")
 		defer os.Remove("ingress_ipv4.json")
 		_, err = cilium.PolicyImport(path, 300)
@@ -492,7 +494,8 @@ var _ = Describe("RunPolicies", func() {
 				"toCIDR": [ "%s/32", "%s" ]
 			 }]
 		}]`, "app1", httpd1["IPv4"], httpd1["IPv6"])
-		helpers.RenderTemplateToFile("egress_ipv4.json", script, 0777)
+		err = helpers.RenderTemplateToFile("egress_ipv4.json", script, 0777)
+		Expect(err).Should(BeNil())
 		path = helpers.GetFilePath("egress_ipv4.json")
 		defer os.Remove("egress_ipv4.json")
 		_, err = cilium.PolicyImport(path, 300)
@@ -500,8 +503,8 @@ var _ = Describe("RunPolicies", func() {
 
 		connectivityTest([]string{"http", "http6"}, "app1", "httpd1", BeTrue)
 		connectivityTest([]string{"http", "http6"}, "app2", "httpd1", BeFalse)
-
 	})
+
 	It("L7 Checks", func() {
 
 		_, err := cilium.PolicyImport(cilium.GetFullPath("l7-simple.json"), 300)

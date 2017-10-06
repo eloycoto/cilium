@@ -28,22 +28,11 @@ var _ = Describe("RunChaosMonkey", func() {
 	}
 
 	wait_for_cilium := func() {
-		var wait int
-		var timeout int = 100
+		err := cilium.WaitUntilReady(100)
+		Expect(err).Should(BeNil())
 
-		for wait < timeout {
-			res := cilium.Node.ExecWithSudo("cilium status", nil, nil)
-			if res {
-				cilium.EndpointWaitUntilReady()
-				// Sometimes system fail on jenkins. Looks like a race condition.
-				// so we sleep for 5 seconds.
-				helpers.Sleep(5)
-				break
-			}
-			logger.Infof("Cilium is not ready yet wait='%d'", wait)
-			helpers.Sleep(1)
-			wait++
-		}
+		status := cilium.EndpointWaitUntilReady()
+		Expect(status).Should(BeTrue())
 	}
 
 	BeforeEach(func() {
@@ -62,16 +51,15 @@ var _ = Describe("RunChaosMonkey", func() {
 		endpoints, err := cilium.GetEndpointsNames()
 		Expect(err).Should(BeNil())
 		originalEndpoins := len(endpoints)
-		cilium.Node.ExecWithSudo("systemctl restart cilium", nil, nil)
+
+		res := cilium.Node.Exec("sudo systemctl restart cilium")
+		Expect(res.Correct()).Should(BeTrue())
 
 		wait_for_cilium()
 
 		endpoints, err = cilium.GetEndpointsNames()
 		Expect(err).Should(BeNil())
 		Expect(len(endpoints)).To(Equal(originalEndpoins))
-		for _, container := range endpoints {
-			docker.ContainerRm(container)
-		}
 	}, 300)
 
 	It("Interfaces chaos", func() {
@@ -80,12 +68,12 @@ var _ = Describe("RunChaosMonkey", func() {
 
 		_ = docker.Node.Exec("sudo ip link add lxc12345 type veth peer name tmp54321")
 
-		status := docker.Node.Exec("sudo systemctl restart cilium")
-		Expect(status.Correct()).Should(BeTrue())
+		res := cilium.Node.Exec("sudo systemctl restart cilium")
+		Expect(res.Correct()).Should(BeTrue())
 
 		wait_for_cilium()
 
-		status = docker.Node.Exec("sudo ip link show lxc12345")
+		status := docker.Node.Exec("sudo ip link show lxc12345")
 		Expect(status.Correct()).Should(BeFalse(),
 			"leftover interface were not properly cleaned up")
 

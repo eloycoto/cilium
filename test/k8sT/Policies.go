@@ -156,14 +156,14 @@ var _ = Describe("K8sPolicyTest", func() {
 			"cilium policy trace --src-k8s-pod default:%s --dst-k8s-pod default:%s",
 			appPods["app2"], appPods["app1"]))
 		Expect(trace.Correct()).Should(BeTrue())
-		Expect(trace.Output()).Should(ContainSubstring("Result: ALLOWED"))
+		Expect(trace.Output().String()).Should(ContainSubstring("Result: ALLOWED"))
 
 		trace = kubectl.CiliumExec(ciliumPod, fmt.Sprintf(
 			"cilium policy trace --src-k8s-pod default:%s --dst-k8s-pod default:%s",
 			appPods["app3"], appPods["app1"]))
 		Expect(trace.Correct()).Should(BeTrue())
 
-		Expect(trace.Output()).Should(ContainSubstring("Result: DENIED"))
+		Expect(trace.Output().String()).Should(ContainSubstring("Result: DENIED"))
 		_, err = kubectl.Exec(
 			"default", appPods["app3"], fmt.Sprintf("curl --fail -s http://%s/public", clusterIP))
 		Expect(err).Should(HaveOccurred())
