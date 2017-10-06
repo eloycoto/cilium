@@ -201,7 +201,7 @@ func (c *Cilium) WaitUntilReady(timeout time.Duration) error {
 
 	body := func() bool {
 		res := c.Node.Exec("sudo cilium status")
-		c.logCxt.Info("Cilium status is %t", res.Correct())
+		c.logCxt.Infof("Cilium status is %t", res.Correct())
 		return res.Correct()
 	}
 	err := WithTimeout(body, "Cilium is not ready", &TimeoutConfig{Timeout: timeout})
