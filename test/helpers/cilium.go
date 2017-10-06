@@ -70,8 +70,8 @@ func (c *Cilium) EndpointWaitUntilReady() bool {
 		if invalid == 0 {
 			return true
 		}
-		logger.Info("Endpoints are not ready valid='%d' invalid='%d'", valid, invalid)
-		return true
+		logger.Infof("Endpoints are not ready valid='%d' invalid='%d'", valid, invalid)
+		return false
 	}
 	err := WithTimeout(body, "Endpoints are not ready", &TimeoutConfig{Timeout: 300})
 	if err != nil {
