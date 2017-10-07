@@ -56,7 +56,9 @@ var _ = Describe("RunChaosMonkey", func() {
 		Expect(res.Correct()).Should(BeTrue())
 
 		wait_for_cilium()
-
+		res = docker.Node.Exec("sudo docker ps")
+		logger.Infof("Docker output is -> %s", res.Output())
+		helpers.Sleep(10)
 		endpoints, err = cilium.GetEndpointsNames()
 		Expect(err).Should(BeNil())
 		Expect(len(endpoints)).To(Equal(originalEndpoins))

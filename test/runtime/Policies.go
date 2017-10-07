@@ -457,9 +457,10 @@ var _ = Describe("RunPolicies", func() {
 		path := helpers.GetFilePath("ingress.json")
 		res := docker.Node.Exec(fmt.Sprintf("cat %s", path))
 		logger.Infof("Ingress.json %s", res.Output())
-		defer os.Remove("ingress.json")
+		logger.Infof("The path for the file is %s", path)
 		_, err = cilium.PolicyImport(path, 300)
 		Expect(err).Should(BeNil())
+		defer os.Remove("ingress.json")
 
 		connectivityTest([]string{"http", "http6"}, "app1", "httpd1", BeTrue)
 		connectivityTest([]string{"http", "http6"}, "app2", "httpd1", BeFalse)

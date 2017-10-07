@@ -229,7 +229,7 @@ func (c *Cilium) PolicyImport(path string, timeout time.Duration) (int, error) {
 	if err != nil {
 		return -1, fmt.Errorf("Can't get policy revision: %s", err)
 	}
-
+	c.logCxt.Info("PolicyImport: %s and current policy revision is '%d'", path, revision)
 	res := c.Exec(fmt.Sprintf("policy import %s", path))
 	if res.Correct() == false {
 		c.logCxt.Errorf("Couldn't import policy %s", res.Output())
