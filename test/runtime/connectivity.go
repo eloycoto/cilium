@@ -116,7 +116,7 @@ var _ = Describe("RunConnectivyTest", func() {
 		client, err := docker.ContainerInspectNet("client")
 		Expect(err).Should(BeNil())
 
-		status := cilium.EndpointSetConfig(endpoints["client"], "NAT46", "true")
+		status := cilium.EndpointSetConfig(endpoints["client"], "NAT46", "Enabled")
 		Expect(status).Should(BeTrue())
 
 		res := docker.ContainerExec("client", fmt.Sprintf(
@@ -236,10 +236,10 @@ var _ = Describe("RunConntrackTest", func() {
 		endpoints, err := cilium.GetEndpointsIds()
 		Expect(err).Should(BeNil(), "Couldn't get endpoints IDS")
 
-		status := cilium.EndpointSetConfig(endpoints["server"], "Conntrack", "false")
+		status := cilium.EndpointSetConfig(endpoints["server"], "Conntrack", "Disabled")
 		Expect(status).Should(BeTrue(), "Couldn't set conntrack=false on endpoint 'server'")
 
-		status = cilium.EndpointSetConfig(endpoints["client"], "Conntrack", "false")
+		status = cilium.EndpointSetConfig(endpoints["client"], "Conntrack", "Disabled")
 		Expect(status).Should(BeTrue(), "Couldn't set conntrack=false on endpoint 'client'")
 
 		client_server_connectivity()
@@ -249,10 +249,10 @@ var _ = Describe("RunConntrackTest", func() {
 		endpoints, err := cilium.GetEndpointsIds()
 		Expect(err).Should(BeNil(), "Couldn't get endpoints IDS")
 
-		status := cilium.EndpointSetConfig(endpoints["server"], "ConntrackLocal", "false")
+		status := cilium.EndpointSetConfig(endpoints["server"], "ConntrackLocal", "Disabled")
 		Expect(status).Should(BeTrue(), "Couldn't set conntrack=false on endpoint 'server'")
 
-		status = cilium.EndpointSetConfig(endpoints["client"], "ConntrackLocal", "false")
+		status = cilium.EndpointSetConfig(endpoints["client"], "ConntrackLocal", "Disabled")
 		Expect(status).Should(BeTrue(), "Couldn't set conntrack=false on endpoint 'client'")
 
 		client_server_connectivity()
@@ -262,10 +262,10 @@ var _ = Describe("RunConntrackTest", func() {
 		endpoints, err := cilium.GetEndpointsIds()
 		Expect(err).Should(BeNil(), "Couldn't get endpoints IDS")
 
-		status := cilium.EndpointSetConfig(endpoints["server"], "ConntrackLocal", "true")
+		status := cilium.EndpointSetConfig(endpoints["server"], "ConntrackLocal", "Enabled")
 		Expect(status).Should(BeTrue(), "Couldn't set conntrack=false on endpoint 'server'")
 
-		status = cilium.EndpointSetConfig(endpoints["client"], "ConntrackLocal", "true")
+		status = cilium.EndpointSetConfig(endpoints["client"], "ConntrackLocal", "Enabled")
 		Expect(status).Should(BeTrue(), "Couldn't set conntrack=false on endpoint 'client'")
 
 		client_server_connectivity()

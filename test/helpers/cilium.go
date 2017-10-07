@@ -60,9 +60,9 @@ func (c *Cilium) EndpointsGet(id string) *models.Endpoint {
 
 //EndPointSetConfig: set to a container endpoint a new config
 func (c *Cilium) EndpointSetConfig(container, option, value string) bool {
+	// on grep we use an space, so we are sure that only match the key that we want.
 	res := c.Exec(fmt.Sprintf(
-		"endpoint config %s | grep %s | awk '{print $1}'", container, option))
-
+		"endpoint config %s | grep '%s ' | awk '{print $2}'", container, option))
 	if res.SingleOut() == value {
 		return res.Correct()
 	}
@@ -81,7 +81,7 @@ func (c *Cilium) EndpointSetConfig(container, option, value string) bool {
 		if len(status.Status) > len(before.Status) {
 			return true
 		}
-		c.logCxt.Infof("Endpoint %d is not regenerated", container)
+		c.logCxt.Infof("Endpoint '%s' is not regenerated", container)
 		return false
 	}, "Endpoint is not regenerated", &TimeoutConfig{Timeout: 100})
 	if err != nil {
