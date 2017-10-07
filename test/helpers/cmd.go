@@ -90,6 +90,12 @@ func (res *cmdRes) Output() *bytes.Buffer {
 	return res.stdout
 }
 
+func (res *cmdRes) CombineOutput() *bytes.Buffer {
+	result := res.stdout
+	result.WriteString(res.stderr.String())
+	return result
+}
+
 func (res *cmdRes) UnMarshal(data interface{}) error {
 	err := json.Unmarshal(res.stdout.Bytes(), &data)
 	return err
