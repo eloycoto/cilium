@@ -119,6 +119,11 @@ func (client *SSHClient) RunCommand(cmd *SSHCommand) ([]byte, error) {
 	}
 	defer session.Close()
 
+	stderr, err := session.StderrPipe()
+	if err != nil {
+		return nil, fmt.Errorf("Unable to setup stderr for session: %v", err)
+	}
+	go io.Copy(cmd.Stderr, stderr)
 	return session.Output(cmd.Path)
 }
 

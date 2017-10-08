@@ -443,21 +443,19 @@ var _ = Describe("RunPolicies", func() {
 			"endpointSelector": {
 				"matchLabels":{"id.httpd1":""}
 			},
-			"ingress": [{
-				"fromEndpoints": [
+			"ingress": [
+				{"fromEndpoints": [
 					{ "matchLabels": {"id.app1": ""}}
-				],
-				"fromCIDR": [ "%s/32", "%s" ]
-			}]
+				]},
+				{"fromCIDR":
+					[ "%s/32", "%s" ]}
+			]
 		}]`, app1["IPv4"], app1["IPv6"])
 
 		err = helpers.RenderTemplateToFile("ingress.json", script, 0777)
 		Expect(err).Should(BeNil())
 
 		path := helpers.GetFilePath("ingress.json")
-		res := docker.Node.Exec(fmt.Sprintf("cat %s", path))
-		logger.Infof("Ingress.json %s", res.Output())
-		logger.Infof("The path for the file is %s", path)
 		_, err = cilium.PolicyImport(path, 300)
 		Expect(err).Should(BeNil())
 		defer os.Remove("ingress.json")
