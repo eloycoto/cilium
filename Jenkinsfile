@@ -30,8 +30,11 @@ pipeline {
                     "Runtime":{
                         sh 'cd ${TESTDIR}; ginkgo --focus="Run*" -v -noColor'
                     },
-                    "K8s":{
-                        sh 'cd ${TESTDIR}; ginkgo --focus="K8s*" -v -noColor'
+                    "K8s-1.7":{
+                        sh 'cd ${TESTDIR}; K8S_VERSION=1.7 ginkgo --focus="K8s*" -v -noColor'
+                    },
+                    "K8s-1.6":{
+                        sh 'cd ${TESTDIR}; K8S_VERSION=1.6 ginkgo --focus="K8s*" -v -noColor'
                     },
                 )
             }
