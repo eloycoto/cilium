@@ -390,13 +390,13 @@ var _ = Describe("RunPolicies", func() {
 				Expect(res.Correct()).Should(assertFn(), fmt.Sprintf(
 					"Client '%s' can't curl to server '%s'", client, server, srvIP["IPv6"]))
 			case "http_private":
-				By(title("Client '%s' HttpReq to server '%s' Ipv4"))
+				By(title("Client '%s' HttpReq to server '%s' private Ipv4"))
 				res := docker.ContainerExec(client, fmt.Sprintf(
 					"curl -s --fail --connect-timeout 3 http://%s:80/private", srvIP["IPv4"]))
 				Expect(res.Correct()).Should(assertFn(), fmt.Sprintf(
 					"Client '%s' can't curl to server '%s' private", client, srvIP["IPv4"]))
 			case "http6_private":
-				By(title("Client '%s' HttpReq to server '%s' Ipv6"))
+				By(title("Client '%s' HttpReq to server '%s' private Ipv6"))
 				res := docker.ContainerExec(client, fmt.Sprintf(
 					"curl -s --fail --connect-timeout 3 http://%s:80/private", srvIP["IPv6"]))
 				Expect(res.Correct()).Should(assertFn(), fmt.Sprintf(
