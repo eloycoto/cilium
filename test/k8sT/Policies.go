@@ -196,7 +196,7 @@ var _ = Describe("K8sPolicyTest", func() {
 			"default", appPods["app3"], fmt.Sprintf("curl --fail -s http://%s/private", clusterIP))
 		Expect(err).Should(HaveOccurred(), msg)
 
-		status = kubectl.Delete(l3Policy)
+		status = kubectl.Delete(l7Policy)
 		Expect(status.Correct()).Should(BeTrue())
 		kubectl.CiliumEndpointWait(ciliumPod)
 
