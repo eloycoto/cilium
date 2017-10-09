@@ -232,7 +232,7 @@ func (kub *Kubectl) CiliumEndpointWait(pod string) bool {
 		}
 
 		kub.logCxt.Infof(
-			"waiting for cilium endpoints pod=%s valid='%d' invalid='%s'",
+			"waiting for cilium endpoints pod='%s' valid='%d' invalid='%d'",
 			pod, valid, invalid)
 		return false
 	}
@@ -267,14 +267,14 @@ func (kub *Kubectl) CiliumPolicyRevision(pod string) (int, error) {
 }
 
 //CiliumImportPolicy import a new policy to cilium
-func (kub *Kubectl) CiliumImportPolicy(namespace string, filepath string, timeout int) (string, error) {
+func (kub *Kubectl) CiliumImportPolicy(namespace string, filepath string, timeout time.Duration) (string, error) {
 	var revision, revi int
-	var wait int
+
+	kub.logCxt.Infof("Importing policy '%s'", filepath)
 	pods, err := kub.GetCiliumPods(namespace)
 	if err != nil {
 		return "", err
 	}
-
 	for _, v := range pods {
 		revi, err := kub.CiliumPolicyRevision(v)
 		if err != nil {
@@ -285,36 +285,41 @@ func (kub *Kubectl) CiliumImportPolicy(namespace string, filepath string, timeou
 			revision = revi
 		}
 	}
-
+	kub.logCxt.Infof("CiliumImportPolicy: path='%s' with revision '%d'", filepath, revision)
 	if status := kub.Apply(filepath); !status.Correct() {
 		return "", fmt.Errorf("Can't apply the policy '%s'", filepath)
 	}
 
-	for wait < timeout {
+	body := func() bool {
 		valid := true
 		for _, v := range pods {
 
 			revi, err := kub.CiliumPolicyRevision(v)
 			if err != nil {
-				return "", err
+				kub.logCxt.Errorf("CiliumImportPolicy: error on get revision %s", err)
+				return false
 			}
 
 			if revi <= revision {
 				valid = false
 			}
 		}
+
 		if valid == true {
 			//Wait until all the pods are synced
 			for _, v := range pods {
 				kub.Exec(namespace, v, fmt.Sprintf("cilium policy wait %d", revi))
 			}
-			//FIXME: Check if something need to be return here
-			return "", nil
+			kub.logCxt.Infof("CiliumImportPolicy: reivision %d is ready", revi)
+			return true
 		}
-		time.Sleep(1 * time.Second)
-		wait++
+		return false
 	}
-	return "", fmt.Errorf("ImportPolicy error due timeout '%d'", timeout)
+	err = WithTimeout(body, "Can't import policy correctly due timeout", &TimeoutConfig{Timeout: timeout})
+	if err != nil {
+		return "", err
+	}
+	return "", nil
 }
 
 func (kub *Kubectl) CiliumPolicyDeleteAll(namespace string) error {
