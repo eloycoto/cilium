@@ -549,4 +549,104 @@ var _ = Describe("RunPolicies", func() {
 		connectivityTest([]string{"ping", "ping6", "http", "http6"}, "app1", "httpd1", BeTrue)
 		connectivityTest([]string{"ping", "ping6", "http", "http6"}, "app2", "httpd1", BeTrue)
 	})
+
+	It("Invalid Policies", func() {
+
+		testInvalidPolicy := func(data string) {
+			err := helpers.RenderTemplateToFile("invalid.json", data, 0777)
+			Expect(err).Should(BeNil())
+
+			path := helpers.GetFilePath("invalid.json")
+			_, err = cilium.PolicyImport(path, 300)
+			Expect(err).Should(HaveOccurred())
+			defer os.Remove("invalid.json")
+		}
+		By("Invalid Json")
+
+		script := fmt.Sprintf(`
+		[{
+			"endpointSelector": {
+				"matchLabels":{"id.httpd1":""}
+			},`)
+		testInvalidPolicy(script)
+
+		By("Test maximun tcp ports")
+		var ports string
+		for i := 0; i < 50; i++ {
+			ports += fmt.Sprintf(`{"port": "%d", "protocol": "tcp"}`, i)
+		}
+		script = fmt.Sprintf(`[{
+		"endpointSelector": {
+			"matchLabels": {
+				"foo": ""
+			}
+		},
+		"ingress": [{
+			"fromEndpoints": [{
+					"matchLabels": {
+						"reserved:host": ""
+					}
+				},
+				{
+					"matchLabels": {
+						"bar": ""
+					}
+				}
+			],
+			"toPorts": [{
+				"ports": [%s]
+			}]
+		}]
+		}]`, ports)
+		testInvalidPolicy(script)
+	})
+
+	It("Policy cmd", func() {
+		By("Policy Labels")
+
+		policy := `[{
+			"endpointSelector": {"matchLabels":{"role":"frontend"}},
+			"labels": ["key1"]
+		},{
+			"endpointSelector": {"matchLabels":{"role":"frontend"}},
+			"labels": ["key2"]
+		},{
+			"endpointSelector": {"matchLabels":{"role":"frontend"}},
+			"labels": ["key3"]
+		}]`
+
+		err := helpers.RenderTemplateToFile("policy.json", policy, 0777)
+		Expect(err).Should(BeNil())
+
+		path := helpers.GetFilePath("policy.json")
+		_, err = cilium.PolicyImport(path, 300)
+		Expect(err).Should(BeNil())
+		defer os.Remove("policy.json")
+		for _, v := range []string{"key1", "key2", "key3"} {
+			res := cilium.PolicyGet(v)
+			Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf("Key %s can't get get", v))
+		}
+
+		res := cilium.PolicyDel("key2")
+		Expect(res.Correct()).Should(BeTrue())
+
+		res = cilium.PolicyGet("key2")
+		Expect(res.Correct()).Should(BeFalse())
+
+		//Key1 and key3 should still exist. Test to delete it
+		for _, v := range []string{"key1", "key3"} {
+			res := cilium.PolicyGet(v)
+			Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+				"Key %s can't get get", v))
+
+			res = cilium.PolicyDel(v)
+			Expect(res.Correct()).Should(BeTrue())
+		}
+		res = cilium.Exec("policy get")
+		Expect(res.Correct()).Should(BeTrue())
+
+		res = cilium.Exec("policy delete --all")
+		Expect(res.Correct()).Should(BeTrue())
+
+	})
 })

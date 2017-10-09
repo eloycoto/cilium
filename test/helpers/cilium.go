@@ -10,13 +10,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//Docker kubectl command helper
+//Cilium struct helper
 type Cilium struct {
 	Node *Node
 
 	logCxt *log.Entry
 }
 
+//CreateCilium return a Cilium struct
 func CreateCilium(target string, log *log.Entry) *Cilium {
 	log.Infof("Cilium: set target to '%s'", target)
 	node := CreateNodeFromTarget(target)
@@ -30,7 +31,7 @@ func CreateCilium(target string, log *log.Entry) *Cilium {
 	}
 }
 
-//Exec: run a cilium command and return a cmdRes
+//Exec run a cilium command and return a cmdRes
 func (c *Cilium) Exec(cmd string) *cmdRes {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
@@ -44,6 +45,7 @@ func (c *Cilium) Exec(cmd string) *cmdRes {
 	}
 }
 
+//EndpointsGet get an endpoint result from cilium. Return a proper cilium model
 func (c *Cilium) EndpointsGet(id string) *models.Endpoint {
 
 	var data []models.Endpoint
@@ -58,7 +60,7 @@ func (c *Cilium) EndpointsGet(id string) *models.Endpoint {
 	return nil
 }
 
-//EndPointSetConfig: set to a container endpoint a new config
+//EndPointSetConfig set to a container endpoint a new config
 func (c *Cilium) EndpointSetConfig(container, option, value string) bool {
 	// on grep we use an space, so we are sure that only match the key that we want.
 	res := c.Exec(fmt.Sprintf(
@@ -214,6 +216,16 @@ func (c *Cilium) PolicyEnforcementSet(status string, waitReady ...bool) *cmdRes 
 		c.EndpointWaitUntilReady(true)
 	}
 	return res
+}
+
+//PolicyDel delete a given policy
+func (c *Cilium) PolicyDel(id string) *cmdRes {
+	return c.Exec(fmt.Sprintf("policy delete %s", id))
+}
+
+//PolicyGet return the policy value
+func (c *Cilium) PolicyGet(id string) *cmdRes {
+	return c.Exec(fmt.Sprintf("policy get %s", id))
 }
 
 //PolicyGetRevision: Get the current Policy revision

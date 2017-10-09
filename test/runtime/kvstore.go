@@ -70,7 +70,6 @@ var _ = Describe("RunKVStoreTest", func() {
 		containers("delete")
 		done <- "Fail"
 		docker.Node.Exec("sudo systemctl start cilium")
-		return
 	})
 
 	It("Consul KVStore", func() {
