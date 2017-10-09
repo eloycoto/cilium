@@ -41,7 +41,7 @@ var _ = Describe("K8sTunnelTest", func() {
 		kubectl.Delete(demoDSPath)
 	})
 
-	FIt("Check VXLAN mode", func() {
+	It("Check VXLAN mode", func() {
 		path := fmt.Sprintf("%s/cilium_ds.yaml", kubectl.ManifestsPath())
 		kubectl.Apply(path)
 		_, err := kubectl.WaitforPods("kube-system", "-l k8s-app=cilium", 5000)
@@ -63,7 +63,7 @@ var _ = Describe("K8sTunnelTest", func() {
 		WaitToDeleteCilium(kubectl, logger)
 	}, 600)
 
-	XIt("Check Geneve mode", func() {
+	It("Check Geneve mode", func() {
 		path := fmt.Sprintf("%s/cilium_ds_geneve.yaml", kubectl.ManifestsPath())
 		kubectl.Apply(path)
 		_, err := kubectl.WaitforPods("kube-system", "-l k8s-app=cilium", 5000)

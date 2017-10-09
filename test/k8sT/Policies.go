@@ -55,7 +55,7 @@ var _ = Describe("K8sPolicyTest", func() {
 		kubectl.Delete(demoPath)
 	})
 
-	XIt("PolicyEnforcement Changes", func() {
+	It("PolicyEnforcement Changes", func() {
 		//This is a small test that check that everything is working in k8s. Full monkey testing
 		// is on runtime/Policies
 		ciliumPod, err := kubectl.GetCiliumPodOnNode("kube-system", "k8s1")
