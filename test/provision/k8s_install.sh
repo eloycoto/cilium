@@ -10,6 +10,8 @@ K8S_VERSION=$3
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 if [[ -f  "/etc/provision_finished" ]]; then
+    sudo dpkg -l | grep kubelet
+    echo "provision is finished, recompiling"
     /tmp/provision/compile.sh
     exit 0
 fi
