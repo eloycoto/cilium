@@ -22,7 +22,7 @@ var DefaultSettings map[string]string = map[string]string{
 var vagrant helpers.Vagrant
 
 func init() {
-
+	// log.SetOutput(os.Stdout)
 	log.SetOutput(GinkgoWriter)
 	log.SetLevel(log.DebugLevel)
 	log.SetFormatter(&log.TextFormatter{
@@ -44,8 +44,10 @@ func init() {
 
 func TestTest(t *testing.T) {
 	RegisterFailHandler(Fail)
-	junitReporter := reporters.NewJUnitReporter(fmt.Sprintf("%s.xml", ginkgoext.GetScope()))
-	RunSpecsWithDefaultAndCustomReporters(t, ginkgoext.GetScope(), []Reporter{junitReporter})
+	junitReporter := reporters.NewJUnitReporter(fmt.Sprintf(
+		"%s.xml", ginkgoext.GetScopeWithVersion()))
+	RunSpecsWithDefaultAndCustomReporters(
+		t, ginkgoext.GetScopeWithVersion(), []Reporter{junitReporter})
 }
 
 var _ = BeforeSuite(func() {
@@ -66,7 +68,6 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	return
 	scope := ginkgoext.GetScope()
 	log.Info("Running After Suite flag for scope='%s'", scope)
 	switch scope {
