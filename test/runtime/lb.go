@@ -46,7 +46,7 @@ var _ = Describe("RunLB", func() {
 				docker.ContainerCreate(k, v, networkName, fmt.Sprintf("-l id.%s", k))
 			}
 		case "delete":
-			for k, _ := range images {
+			for k := range images {
 				docker.ContainerRm(k)
 			}
 		}

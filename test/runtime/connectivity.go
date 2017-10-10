@@ -150,7 +150,7 @@ var _ = Describe("RunConntrackTest", func() {
 		initilized = true
 	}
 
-	client_server_connectivity := func() {
+	clientServerConnectivity := func() {
 		cliIP, err := docker.ContainerInspectNet("client")
 		Expect(err).Should(BeNil(), "Couldn't get container client Meta")
 
@@ -231,7 +231,6 @@ var _ = Describe("RunConntrackTest", func() {
 		docker.ContainerRm("server")
 		docker.ContainerRm("client")
 	})
-
 	It("Conntrack disabled", func() {
 		endpoints, err := cilium.GetEndpointsIds()
 		Expect(err).Should(BeNil(), "Couldn't get endpoints IDS")
@@ -242,7 +241,7 @@ var _ = Describe("RunConntrackTest", func() {
 		status = cilium.EndpointSetConfig(endpoints["client"], "Conntrack", "Disabled")
 		Expect(status).Should(BeTrue(), "Couldn't set conntrack=false on endpoint 'client'")
 
-		client_server_connectivity()
+		clientServerConnectivity()
 	})
 
 	It("ConntrackLocal disabled", func() {
@@ -255,7 +254,7 @@ var _ = Describe("RunConntrackTest", func() {
 		status = cilium.EndpointSetConfig(endpoints["client"], "ConntrackLocal", "Disabled")
 		Expect(status).Should(BeTrue(), "Couldn't set conntrack=false on endpoint 'client'")
 
-		client_server_connectivity()
+		clientServerConnectivity()
 	})
 
 	It("ConntrackLocal Enabled", func() {
@@ -268,7 +267,7 @@ var _ = Describe("RunConntrackTest", func() {
 		status = cilium.EndpointSetConfig(endpoints["client"], "ConntrackLocal", "Enabled")
 		Expect(status).Should(BeTrue(), "Couldn't set conntrack=false on endpoint 'client'")
 
-		client_server_connectivity()
+		clientServerConnectivity()
 	})
 
 })

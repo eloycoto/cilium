@@ -27,7 +27,7 @@ var _ = Describe("RunChaosMonkey", func() {
 		initilized = true
 	}
 
-	wait_for_cilium := func() {
+	waitForCilium := func() {
 		err := cilium.WaitUntilReady(100)
 		Expect(err).Should(BeNil())
 
@@ -49,19 +49,19 @@ var _ = Describe("RunChaosMonkey", func() {
 	})
 
 	It("Endpoint recovery on restart", func() {
-		original_ips := cilium.Node.Exec(`
+		originalIps := cilium.Node.Exec(`
 		curl -s --unix-socket /var/run/cilium/cilium.sock \
 		http://localhost/v1beta/healthz/ | jq ".ipam.ipv4|length"`)
 
 		res := cilium.Node.Exec("sudo systemctl restart cilium")
 		Expect(res.Correct()).Should(BeTrue())
 
-		wait_for_cilium()
+		waitForCilium()
 
 		ips := cilium.Node.Exec(`
 		curl -s --unix-socket /var/run/cilium/cilium.sock \
 		http://localhost/v1beta/healthz/ | jq ".ipam.ipv4|length"`)
-		Expect(original_ips.Output()).To(Equal(ips.Output()))
+		Expect(originalIps.Output()).To(Equal(ips.Output()))
 
 	}, 300)
 
@@ -74,7 +74,7 @@ var _ = Describe("RunChaosMonkey", func() {
 		res := cilium.Node.Exec("sudo systemctl restart cilium")
 		Expect(res.Correct()).Should(BeTrue())
 
-		wait_for_cilium()
+		waitForCilium()
 
 		status := docker.Node.Exec("sudo ip link show lxc12345")
 		Expect(status.Correct()).Should(BeFalse(),
