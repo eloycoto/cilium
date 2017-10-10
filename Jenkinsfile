@@ -42,6 +42,7 @@ pipeline {
                 always {
                     junit 'test/*.xml'
                     sh 'cd test/; vagrant destroy -f'
+                    sh 'cd test/; K8S_VERSION=1.6; vagrant destroy -f'
                 }
             }
         }
