@@ -15,7 +15,7 @@ type Vagrant struct{}
 
 //Create a new vagrant server
 func (vagrant *Vagrant) Create(scope string, ssh ...bool) error {
-	createCMD := "vagrant up %s"
+	createCMD := "vagrant up %s --provision"
 	for _, v := range vagrant.Status(scope) {
 		if v == "running" {
 			createCMD = "vagrant provision %s"
