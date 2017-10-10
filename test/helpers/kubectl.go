@@ -15,7 +15,7 @@ import (
 	"k8s.io/client-go/util/jsonpath"
 )
 
-//GetCurentK8SEnv Return the value of the K8S_VERSION
+//GetCurrentK8SEnv Returns the value of the K8S_VERSION
 func GetCurrentK8SEnv() string { return os.Getenv("K8S_VERSION") }
 
 //Kubectl kubectl command helper
@@ -72,15 +72,16 @@ func CreateKubectl(target string, log *log.Entry) *Kubectl {
 	}
 }
 
-func (kubectl *Kubectl) Exec(namespace string, pod string, cmd string) (string, error) {
+//Exec run a command in a pod in specific namespace
+func (kub *Kubectl) Exec(namespace string, pod string, cmd string) (string, error) {
 	command := fmt.Sprintf("kubectl exec -n %s %s -- %s", namespace, pod, cmd)
 	stdout := new(bytes.Buffer)
 
-	exit := kubectl.Node.Execute(command, stdout, nil)
+	exit := kub.Node.Execute(command, stdout, nil)
 	if exit == false {
 		// FIXME: Output here is important.
 		// Return the string is not fired on the assertion :\ Need to check
-		kubectl.logCxt.Errorf(
+		kub.logCxt.Errorf(
 			"Exec command failed '%s' pod='%s' erro='%s'",
 			cmd, pod, stdout.String())
 		return "", fmt.Errorf("Exec: command '%s' failed '%s'", command, stdout.String())
@@ -88,17 +89,18 @@ func (kubectl *Kubectl) Exec(namespace string, pod string, cmd string) (string, 
 	return stdout.String(), nil
 }
 
-func (kub *Kubectl) Get(namespace string, command string) *cmdRes {
+//Get wrappped on kubectl get command
+func (kub *Kubectl) Get(namespace string, command string) *CmdRes {
 	return kub.Node.Exec(fmt.Sprintf(
 		"kubectl -n %s get %s -o json", namespace, command))
 }
 
 //GetPods return all the pods for a namespace. Kubectl filter can be passed
-func (kubectl *Kubectl) GetPods(namespace string, filter string) *KubectlRes {
+func (kub *Kubectl) GetPods(namespace string, filter string) *KubectlRes {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 
-	exit := kubectl.Node.Execute(
+	exit := kub.Node.Execute(
 		fmt.Sprintf("kubectl -n %s get pods %s -o json", namespace, filter),
 		stdout, stderr)
 	return &KubectlRes{
@@ -130,7 +132,8 @@ func (kub *Kubectl) GetPodsNames(namespace string, label string) ([]string, erro
 	return strings.Split(out, " "), nil
 }
 
-func (kubectl *Kubectl) ManifestsPath() string {
+//ManifestsPath return the manifests path for the k8s version
+func (kub *Kubectl) ManifestsPath() string {
 	return fmt.Sprintf("%s/k8sT/manifests/%s", basePath, GetCurrentK8SEnv())
 }
 
@@ -169,26 +172,28 @@ func (kub *Kubectl) WaitforPods(namespace string, filter string, timeout time.Du
 }
 
 //Apply a new manifest using kubectl
-func (kubectl *Kubectl) Apply(filepath string) *cmdRes {
-	return kubectl.Node.Exec(
+func (kub *Kubectl) Apply(filepath string) *CmdRes {
+	return kub.Node.Exec(
 		fmt.Sprintf("kubectl apply -f  %s", filepath))
 }
 
 //Delete a manifest using kubectl
-func (kubectl *Kubectl) Delete(filepath string) *cmdRes {
-	return kubectl.Node.Exec(
+func (kub *Kubectl) Delete(filepath string) *CmdRes {
+	return kub.Node.Exec(
 		fmt.Sprintf("kubectl delete -f  %s", filepath))
 }
 
 //GetCiliumPods return all cilium pods
-func (kubectl *Kubectl) GetCiliumPods(namespace string) ([]string, error) {
-	return kubectl.GetPodsNames(namespace, "k8s-app=cilium")
+func (kub *Kubectl) GetCiliumPods(namespace string) ([]string, error) {
+	return kub.GetPodsNames(namespace, "k8s-app=cilium")
 }
 
-func (kub *Kubectl) CiliumEndpointsGet(pod string) *cmdRes {
+//CiliumEndpointsGet return the list of endpoints on cilium
+func (kub *Kubectl) CiliumEndpointsGet(pod string) *CmdRes {
 	return kub.CiliumExec(pod, "cilium endpoint list -o json")
 }
 
+//CiliumEndpointsGetByTag return the list of endpoints filter by a tag
 func (kub *Kubectl) CiliumEndpointsGetByTag(pod, tag string) (EndPointMap, error) {
 	result := make(EndPointMap)
 	var data []models.Endpoint
@@ -211,6 +216,7 @@ func (kub *Kubectl) CiliumEndpointsGetByTag(pod, tag string) (EndPointMap, error
 	return result, nil
 }
 
+//CiliumEndpointWait wait until cilium endpoints are ready
 func (kub *Kubectl) CiliumEndpointWait(pod string) bool {
 
 	body := func() bool {
@@ -245,12 +251,12 @@ func (kub *Kubectl) CiliumEndpointWait(pod string) bool {
 }
 
 //CiliumExec run command into a cilium pod
-func (kub *Kubectl) CiliumExec(pod string, cmd string) *cmdRes {
+func (kub *Kubectl) CiliumExec(pod string, cmd string) *CmdRes {
 	cmd = fmt.Sprintf("kubectl exec -n kube-system %s -- %s", pod, cmd)
 	return kub.Node.Exec(cmd)
 }
 
-//CiliumPolicyRevision: Get the policy revision for a pod
+//CiliumPolicyRevision Get the policy revision for a pod
 func (kub *Kubectl) CiliumPolicyRevision(pod string) (int, error) {
 
 	res := kub.CiliumExec(pod, "cilium policy get | grep Revision | awk '{print $2}'")
@@ -322,6 +328,7 @@ func (kub *Kubectl) CiliumImportPolicy(namespace string, filepath string, timeou
 	return "", nil
 }
 
+//CiliumPolicyDeleteAll delete all policies on cilium pods
 func (kub *Kubectl) CiliumPolicyDeleteAll(namespace string) error {
 	var revision int
 	pods, err := kub.GetCiliumPods(namespace)
@@ -375,8 +382,9 @@ func (kub *Kubectl) GetCiliumPodOnNode(namespace string, node string) (string, e
 //EndPointMap Map with all the endpoints in cilium
 type EndPointMap map[string]models.Endpoint
 
+//GetPolicyStatus return a map with enabled/disabled policy enforcement endpoints
 func (epMap *EndPointMap) GetPolicyStatus() map[string]int {
-	var result map[string]int = map[string]int{
+	result := map[string]int{
 		"enabled":  0,
 		"disabled": 0,
 	}
@@ -391,6 +399,7 @@ func (epMap *EndPointMap) GetPolicyStatus() map[string]int {
 	return result
 }
 
+//AreReady return true if all cilium endpoints are ready
 func (epMap *EndPointMap) AreReady() bool {
 	for _, ep := range *epMap {
 		if ep.State != "ready" {

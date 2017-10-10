@@ -28,14 +28,14 @@ func CreateDocker(target string, log *log.Entry) *Docker {
 	}
 }
 
-//ContainerExec: execute a command in a container
-func (do *Docker) ContainerExec(name string, cmd string) *cmdRes {
+//ContainerExec execute a command in a container
+func (do *Docker) ContainerExec(name string, cmd string) *CmdRes {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 
 	command := fmt.Sprintf("docker exec -i %s %s", name, cmd)
 	exit := do.Node.ExecWithSudo(command, stdout, stderr)
-	return &cmdRes{
+	return &CmdRes{
 		cmd:    command,
 		stdout: stdout,
 		stderr: stderr,
@@ -43,7 +43,8 @@ func (do *Docker) ContainerExec(name string, cmd string) *cmdRes {
 	}
 }
 
-func (do *Docker) ContainerCreate(name, image, net, options string) *cmdRes {
+//ContainerCreate create a container on docker
+func (do *Docker) ContainerCreate(name, image, net, options string) *CmdRes {
 
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
@@ -52,7 +53,7 @@ func (do *Docker) ContainerCreate(name, image, net, options string) *cmdRes {
 		"docker run -d --name %s --net %s %s %s", name, net, options, image)
 	exit := do.Node.ExecWithSudo(cmd, stdout, stderr)
 
-	return &cmdRes{
+	return &CmdRes{
 		cmd:    cmd,
 		stdout: stdout,
 		stderr: stderr,
@@ -60,7 +61,8 @@ func (do *Docker) ContainerCreate(name, image, net, options string) *cmdRes {
 	}
 }
 
-func (do *Docker) ContainerRm(name string) *cmdRes {
+//ContainerRm force a deletigion of a container based on a name
+func (do *Docker) ContainerRm(name string) *CmdRes {
 
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
@@ -68,7 +70,7 @@ func (do *Docker) ContainerRm(name string) *cmdRes {
 	cmd := fmt.Sprintf("docker rm -f %s", name)
 	exit := do.Node.ExecWithSudo(cmd, stdout, stderr)
 
-	return &cmdRes{
+	return &CmdRes{
 		cmd:    cmd,
 		stdout: stdout,
 		stderr: stderr,
@@ -76,15 +78,15 @@ func (do *Docker) ContainerRm(name string) *cmdRes {
 	}
 }
 
-//ContainerInspect: Inspect a container
-func (do *Docker) ContainerInspect(name string) *cmdRes {
+//ContainerInspect Inspect a container
+func (do *Docker) ContainerInspect(name string) *CmdRes {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 
 	cmd := fmt.Sprintf("docker inspect %s", name)
 	exit := do.Node.ExecWithSudo(cmd, stdout, stderr)
 
-	return &cmdRes{
+	return &CmdRes{
 		cmd:    cmd,
 		stdout: stdout,
 		stderr: stderr,
@@ -92,10 +94,10 @@ func (do *Docker) ContainerInspect(name string) *cmdRes {
 	}
 }
 
-//ContainerInspectNet: return the Net details for a container
+//ContainerInspectNet return the Net details for a container
 func (do *Docker) ContainerInspectNet(name string) (map[string]string, error) {
 	res := do.ContainerInspect(name)
-	var properties map[string]string = map[string]string{
+	properties := map[string]string{
 		"EndpointID":        "EndpointID",
 		"GlobalIPv6Address": "IPv6",
 		"IPAddress":         "IPv4",
@@ -123,7 +125,7 @@ func (do *Docker) ContainerInspectNet(name string) (map[string]string, error) {
 }
 
 //NetworkCreate create a new docker network
-func (do *Docker) NetworkCreate(name string, subnet string) *cmdRes {
+func (do *Docker) NetworkCreate(name string, subnet string) *CmdRes {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 	if subnet == "" {
@@ -134,7 +136,7 @@ func (do *Docker) NetworkCreate(name string, subnet string) *cmdRes {
 		subnet, name)
 	exit := do.Node.ExecWithSudo(cmd, stdout, stderr)
 
-	return &cmdRes{
+	return &CmdRes{
 		cmd:    cmd,
 		stdout: stdout,
 		stderr: stderr,
@@ -142,13 +144,13 @@ func (do *Docker) NetworkCreate(name string, subnet string) *cmdRes {
 	}
 }
 
-//NetworkCreate create a new docker network
-func (do *Docker) NetworkDelete(name string) *cmdRes {
+//NetworkDelete create a new docker network
+func (do *Docker) NetworkDelete(name string) *CmdRes {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 	cmd := fmt.Sprintf("docker network rm  %s", name)
 	exit := do.Node.ExecWithSudo(cmd, stdout, stderr)
-	return &cmdRes{
+	return &CmdRes{
 		cmd:    cmd,
 		stdout: stdout,
 		stderr: stderr,
@@ -156,14 +158,14 @@ func (do *Docker) NetworkDelete(name string) *cmdRes {
 	}
 }
 
-//NetworkGet: return all the docker network information
-func (do *Docker) NetworkGet(name string) *cmdRes {
+//NetworkGet return all the docker network information
+func (do *Docker) NetworkGet(name string) *CmdRes {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 	cmd := fmt.Sprintf("docker network inspect %s", name)
 	exit := do.Node.ExecWithSudo(cmd, stdout, stderr)
 
-	return &cmdRes{
+	return &CmdRes{
 		cmd:    cmd,
 		stdout: stdout,
 		stderr: stderr,
@@ -171,9 +173,9 @@ func (do *Docker) NetworkGet(name string) *cmdRes {
 	}
 }
 
-//SampleContainersActions: This create/delete a bunch of containers to test
+//SampleContainersActions This create/delete a bunch of containers to test
 func (do *Docker) SampleContainersActions(mode string, networkName string) {
-	var images map[string]string = map[string]string{
+	images := map[string]string{
 		"httpd1": "cilium/demo-httpd",
 		"httpd2": "cilium/demo-httpd",
 		"httpd3": "cilium/demo-httpd",
@@ -188,7 +190,7 @@ func (do *Docker) SampleContainersActions(mode string, networkName string) {
 			do.ContainerCreate(k, v, networkName, fmt.Sprintf("-l id.%s", k))
 		}
 	case "delete":
-		for k, _ := range images {
+		for k := range images {
 			do.ContainerRm(k)
 		}
 	}

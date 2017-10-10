@@ -75,13 +75,14 @@ func (node *Node) ExecWithSudo(cmd string, stdout io.Writer, stderr io.Writer) b
 	return node.Execute(command, stdout, stderr)
 }
 
-func (node *Node) Exec(cmd string) *cmdRes {
+//Exec a function and return a cmdRes command
+func (node *Node) Exec(cmd string) *CmdRes {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 
 	exit := node.Execute(cmd, stdout, stderr)
 
-	return &cmdRes{
+	return &CmdRes{
 		cmd:    cmd,
 		stdout: stdout,
 		stderr: stderr,

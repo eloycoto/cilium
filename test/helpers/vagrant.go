@@ -109,7 +109,7 @@ func (vagrant *Vagrant) getPath(prog string) string {
 
 //Status return a map with the server name (key) and the status as value
 func (vagrant *Vagrant) Status(key string) map[string]string {
-	var result map[string]string = map[string]string{}
+	result := map[string]string{}
 
 	cmd := vagrant.getCMD(fmt.Sprintf("vagrant status %s --machine-readable", key))
 	data, err := cmd.CombinedOutput()

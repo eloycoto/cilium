@@ -11,7 +11,7 @@ import (
 	"k8s.io/client-go/util/jsonpath"
 )
 
-type cmdRes struct {
+type CmdRes struct {
 	cmd    string
 	params []string
 	stdout *bytes.Buffer
@@ -20,19 +20,19 @@ type cmdRes struct {
 }
 
 //Correct: return true if the command was sucessfull
-func (res *cmdRes) Correct() bool {
+func (res *CmdRes) Correct() bool {
 	return res.exit
 }
 
-func (res *cmdRes) IntOutput() (int, error) {
+func (res *CmdRes) IntOutput() (int, error) {
 	return strconv.Atoi(strings.Trim(res.stdout.String(), "\n"))
 }
 
-func (res *cmdRes) SingleOut() string {
+func (res *CmdRes) SingleOut() string {
 	return strings.Trim(res.stdout.String(), "\n")
 }
 
-func (res *cmdRes) FindResults(filter string) ([]reflect.Value, error) {
+func (res *CmdRes) FindResults(filter string) ([]reflect.Value, error) {
 
 	var data interface{}
 	var result []reflect.Value
@@ -52,7 +52,7 @@ func (res *cmdRes) FindResults(filter string) ([]reflect.Value, error) {
 	return result, nil
 }
 
-func (res *cmdRes) Filter(filter string) (*bytes.Buffer, error) {
+func (res *CmdRes) Filter(filter string) (*bytes.Buffer, error) {
 	var data interface{}
 	result := new(bytes.Buffer)
 
@@ -75,7 +75,7 @@ func (res *cmdRes) Filter(filter string) (*bytes.Buffer, error) {
 // 		b=2
 // 		c=3
 // This funtion will return a map with the values in the stdout output
-func (res *cmdRes) KVOutput() map[string]string {
+func (res *CmdRes) KVOutput() map[string]string {
 	result := make(map[string]string)
 	for _, line := range strings.Split(res.stdout.String(), "\n") {
 		vals := strings.Split(line, "=")
@@ -86,17 +86,17 @@ func (res *cmdRes) KVOutput() map[string]string {
 	return result
 }
 
-func (res *cmdRes) Output() *bytes.Buffer {
+func (res *CmdRes) Output() *bytes.Buffer {
 	return res.stdout
 }
 
-func (res *cmdRes) CombineOutput() *bytes.Buffer {
+func (res *CmdRes) CombineOutput() *bytes.Buffer {
 	result := res.stdout
 	result.WriteString(res.stderr.String())
 	return result
 }
 
-func (res *cmdRes) UnMarshal(data interface{}) error {
+func (res *CmdRes) UnMarshal(data interface{}) error {
 	err := json.Unmarshal(res.stdout.Bytes(), &data)
 	return err
 }
