@@ -68,6 +68,8 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	return
+
 	scope := ginkgoext.GetScope()
 	log.Info("Running After Suite flag for scope='%s'", scope)
 	switch scope {
