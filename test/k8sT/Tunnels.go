@@ -27,8 +27,10 @@ var _ = Describe("K8sTunnelTest", func() {
 
 		kubectl = helpers.CreateKubectl("k8s1", logger)
 		demoDSPath = fmt.Sprintf("%s/demo_ds.yaml", kubectl.ManifestsPath())
-		kubectl.Node.Execute("kubectl -n kube-system delete ds cilium", nil, nil)
-		WaitToDeleteCilium(kubectl, logger)
+		res := kubectl.Node.Exec("kubectl -n kube-system delete ds cilium")
+		Expect(res.Correct()).Should(BeTrue())
+
+		waitToDeleteCilium(kubectl, logger)
 		initilized = true
 	}
 
@@ -60,7 +62,7 @@ var _ = Describe("K8sTunnelTest", func() {
 		tunnStatus := isNodeNetworkingWorking(kubectl, "zgroup=testDS")
 		Expect(tunnStatus).Should(BeTrue())
 		kubectl.Delete(path)
-		WaitToDeleteCilium(kubectl, logger)
+		waitToDeleteCilium(kubectl, logger)
 	}, 600)
 
 	It("Check Geneve mode", func() {
@@ -83,7 +85,7 @@ var _ = Describe("K8sTunnelTest", func() {
 		Expect(tunnStatus).Should(BeTrue())
 		//FIXME: Maybe added here a cilium bpf tunnel status?
 		kubectl.Delete(path)
-		WaitToDeleteCilium(kubectl, logger)
+		waitToDeleteCilium(kubectl, logger)
 	}, 600)
 })
 
@@ -103,8 +105,8 @@ func isNodeNetworkingWorking(kubectl *helpers.Kubectl, filter string) bool {
 	return true
 }
 
-func WaitToDeleteCilium(kubectl *helpers.Kubectl, logger *log.Entry) {
-	var status int = 1
+func waitToDeleteCilium(kubectl *helpers.Kubectl, logger *log.Entry) {
+	status := 1
 	for status > 0 {
 		pods, err := kubectl.GetCiliumPods("kube-system")
 		status := len(pods)
