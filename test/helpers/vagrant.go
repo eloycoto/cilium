@@ -22,8 +22,9 @@ func (vagrant *Vagrant) Create(scope string, ssh ...bool) error {
 			break
 		}
 	}
+	createCMD = fmt.Sprint(createCMD, scope)
 	log.Infof("Vagrant:Create: running %s", createCMD)
-	cmd := vagrant.getCMD(fmt.Sprintf(createCMD, scope))
+	cmd := vagrant.getCMD(createCMD)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
