@@ -81,7 +81,7 @@ var _ = Describe("RuntimePolicyEnforcement", func() {
 				Expect(endPoints["disabled"]).To(Equal(1))
 			})
 
-			By("Apply a new policy")
+			By("Apply a new sample policy")
 			_, err := cilium.PolicyImport(cilium.GetFullPath("sample_policy.json"), 300)
 			Expect(err).Should(BeNil())
 
@@ -339,14 +339,14 @@ var _ = Describe("RuntimePolicyEnforcement", func() {
 
 var _ = Describe("RunPolicies", func() {
 
-	var initilized bool
+	var initialized bool
 	var networkName string = "cilium-net"
 	var logger *log.Entry
 	var docker *helpers.Docker
 	var cilium *helpers.Cilium
 
-	initilize := func() {
-		if initilized == true {
+	initialize := func() {
+		if initialized == true {
 			return
 		}
 		logger = log.WithFields(log.Fields{"test": "RunPolicies"})
@@ -357,12 +357,12 @@ var _ = Describe("RunPolicies", func() {
 		cilium.WaitUntilReady(100)
 		res := cilium.PolicyEnforcementSet("default", false)
 		Expect(res.WasSuccessful()).Should(BeTrue())
-		initilized = true
+		initialized = true
 
 	}
 
 	BeforeEach(func() {
-		initilize()
+		initialize()
 		cilium.Exec("policy delete --all")
 		docker.SampleContainersActions("create", networkName)
 		cilium.EndpointWaitUntilReady()

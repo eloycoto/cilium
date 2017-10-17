@@ -93,7 +93,7 @@ spec:
         kubernetes.io/cluster-service: "true"
     spec:
       containers:
-      - image: 192.168.36.11:5000/cilium/cilium-dev:latest
+      - image: k8s1:5000/cilium/cilium-dev:latest
         imagePullPolicy: Always
         name: cilium-agent
         command: [ "cilium-agent" ]
@@ -102,7 +102,7 @@ spec:
           - "--kvstore"
           - "etcd"
           - "--kvstore-opt"
-          - "etcd.address=http://192.168.36.11:9732"
+          - "etcd.address=http://k8s1:9732"
           - "--k8s-kubeconfig-path"
           - "/opt/cilium/kubeconfig"
           - "-t"

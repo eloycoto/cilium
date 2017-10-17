@@ -11,7 +11,7 @@ import (
 
 var _ = Describe("RuntimeConnectivityTest", func() {
 
-	var initilized bool
+	var initialized bool
 	var networkName string = "cilium-net"
 
 	var netperfImage string = "tgraf/netperf"
@@ -19,20 +19,20 @@ var _ = Describe("RuntimeConnectivityTest", func() {
 	var docker *helpers.Docker
 	var cilium *helpers.Cilium
 
-	initilize := func() {
-		if initilized == true {
+	initialize := func() {
+		if initialized == true {
 			return
 		}
-		logger = log.WithFields(log.Fields{"test": "RunConnectivityTest"})
+		logger = log.WithFields(log.Fields{"test": "RuntimeConnectivityTest"})
 		logger.Info("Starting")
 		docker, cilium = helpers.CreateNewRuntimeHelper("runtime", logger)
 		cilium.WaitUntilReady(100)
 		docker.NetworkCreate(networkName, "")
-		initilized = true
+		initialized = true
 	}
 
 	BeforeEach(func() {
-		initilize()
+		initialize()
 		docker.ContainerCreate("client", netperfImage, networkName, "-l id.client")
 		docker.ContainerCreate("server", netperfImage, networkName, "-l id.server")
 		cilium.Exec("policy delete --all")
@@ -131,7 +131,7 @@ var _ = Describe("RuntimeConnectivityTest", func() {
 
 var _ = Describe("RunConntrackTest", func() {
 
-	var initilized bool
+	var initialized bool
 	var networkName string = "cilium-net"
 
 	var netperfImage string = "tgraf/netperf"
@@ -139,15 +139,15 @@ var _ = Describe("RunConntrackTest", func() {
 	var docker *helpers.Docker
 	var cilium *helpers.Cilium
 
-	initilize := func() {
-		if initilized == true {
+	initialize := func() {
+		if initialized == true {
 			return
 		}
 		logger = log.WithFields(log.Fields{"test": "RunConntrackTest"})
 		logger.Info("Starting")
 		docker, cilium = helpers.CreateNewRuntimeHelper("runtime", logger)
 		docker.NetworkCreate(networkName, "")
-		initilized = true
+		initialized = true
 	}
 
 	clientServerConnectivity := func() {
@@ -221,7 +221,7 @@ var _ = Describe("RunConntrackTest", func() {
 	}
 
 	BeforeEach(func() {
-		initilize()
+		initialize()
 		docker.ContainerCreate("client", netperfImage, networkName, "-l id.client")
 		docker.ContainerCreate("server", netperfImage, networkName, "-l id.server")
 		cilium.Exec("policy delete --all")

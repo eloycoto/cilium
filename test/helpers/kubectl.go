@@ -1,3 +1,17 @@
+// Copyright 2017 Authors of Cilium
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package helpers
 
 import (
@@ -11,6 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/cilium/cilium/api/v1/models"
+	"github.com/cilium/cilium/pkg/k8s"
 )
 
 //GetCurrentK8SEnv returns the value of K8S_VERSION from the OS environment
@@ -42,14 +57,15 @@ func CreateKubectl(target string, log *log.Entry) *Kubectl {
 func (kub *Kubectl) Exec(namespace string, pod string, cmd string) (string, error) {
 	command := fmt.Sprintf("kubectl exec -n %s %s -- %s", namespace, pod, cmd)
 	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
 
-	exit := kub.Node.Execute(command, stdout, nil)
+	exit := kub.Node.Execute(command, stdout, stderr)
 	if exit == false {
 		// TODO: Return CmdRes here
 		// Return the string is not fired on the assertion :\ Need to check
 		kub.logCxt.Errorf(
-			"Exec command failed '%s' pod='%s' error='%s'",
-			cmd, pod, stdout.String())
+			"Exec command failed '%s' pod='%s' error='%s||%s'",
+			cmd, pod, stdout.String(), stderr.String())
 		return "", fmt.Errorf("Exec: command '%s' failed '%s'", command, stdout.String())
 	}
 	return stdout.String(), nil
@@ -108,6 +124,25 @@ func (kub *Kubectl) Logs(namespace string, pod string) *CmdRes {
 //ManifestsPath returns the manifests path for the k8s version
 func (kub *Kubectl) ManifestsPath() string {
 	return fmt.Sprintf("%s/k8sT/manifests/%s", basePath, GetCurrentK8SEnv())
+}
+
+//NodeCleanMetadata delete all cilium metadata info to all nodes
+func (kub *Kubectl) NodeCleanMetadata() error {
+	metadata := []string{
+		k8s.Annotationv4CIDRName,
+		k8s.Annotationv6CIDRName,
+	}
+
+	data := kub.Node.Exec("kubectl get nodes -o jsonpath='{.items[*].metadata.name}'")
+	if !data.WasSuccessful() {
+		return fmt.Errorf("Could not get nodes: %s", data.CombineOutput())
+	}
+	for _, node := range strings.Split(data.Output().String(), " ") {
+		for _, label := range metadata {
+			kub.Node.Exec(fmt.Sprintf("kubectl annotate nodes %s %s", node, label))
+		}
+	}
+	return nil
 }
 
 //WaitforPods waits until pods are ready in the specified namespace using the provided JSONPath filter. It waits up to timeout seconds for the command to complete. Returns true if the command succeeded within the specified timeout, and an error if the command failed or did not succeed during the specified timeout.
@@ -226,10 +261,54 @@ func (kub *Kubectl) CiliumEndpointWait(pod string) bool {
 	return true
 }
 
+//CiliumEndpointPolicyVersion returns a map with the endpoint id and the policy
+//revision that are in a cilium pod
+func (kub *Kubectl) CiliumEndpointPolicyVersion(pod string) map[string]int64 {
+	result := map[string]int64{}
+	filter := `{range [*]}{@.id}{"="}{@.policy-revision}{"\n"}{end}`
+
+	data := kub.CiliumExec(
+		pod,
+		fmt.Sprintf("cilium endpoint list -o jsonpath='%s'", filter))
+	for k, v := range data.KVOutput() {
+		val, _ := govalidator.ToInt(v)
+		result[k] = val
+	}
+	return result
+}
+
 //CiliumExec runs cmd in the specified Cilium pod
 func (kub *Kubectl) CiliumExec(pod string, cmd string) *CmdRes {
 	cmd = fmt.Sprintf("kubectl exec -n kube-system %s -- %s", pod, cmd)
 	return kub.Node.Exec(cmd)
+}
+
+//CiliumNodesWait When a new cilium DS is set, the status can be ok but tunnels
+//are not in place yet. Checking the `kubectl get nodes` we can know if cilium
+//added the node correctly. In case of timeout will return an error
+func (kub *Kubectl) CiliumNodesWait() (bool, error) {
+	body := func() bool {
+		filter := `{range .items[*]}{@.metadata.name}{"="}{@.metadata.annotations.io\.cilium\.network\.ipv4-pod-cidr}{"\n"}{end}`
+		data := kub.Node.Exec(fmt.Sprintf(
+			"kubectl get nodes -o jsonpath='%s'", filter))
+		if !data.WasSuccessful() {
+			return false
+		}
+		result := data.KVOutput()
+		for k, v := range result {
+			if v == "" {
+				kub.logCxt.Infof("K8s node '%s' does not have cilium metadata", k)
+				return false
+			}
+			kub.logCxt.Infof("K8s node '%s' ipv4 addr '%s'", k, v)
+		}
+		return true
+	}
+	err := WithTimeout(body, "k8s nodes does not have cilium metadata", &TimeoutConfig{Timeout: timeout})
+	if err != nil {
+		return false, nil
+	}
+	return true, nil
 }
 
 //CiliumPolicyRevision returns the policy revision in the specified Cilium pod.
@@ -241,10 +320,10 @@ func (kub *Kubectl) CiliumPolicyRevision(pod string) (int, error) {
 	if !res.WasSuccessful() {
 		return -1, fmt.Errorf("Cannot get the revision %s", res.Output())
 	}
-
 	revi, err := res.IntOutput()
 	if err != nil {
-		return revi, err
+		kub.logCxt.Errorf("Revision on pod '%s' is not valid '%s'", pod, res.CombineOutput())
+		return -1, err
 	}
 	return revi, nil
 }
@@ -253,49 +332,54 @@ func (kub *Kubectl) CiliumPolicyRevision(pod string) (int, error) {
 //until timeout seconds for the policy to be applied in all Cilium endpoints.
 //Returns an error if the command fails or times out.
 func (kub *Kubectl) CiliumImportPolicy(namespace string, filepath string, timeout time.Duration) (string, error) {
-	var revision, revi int
+	var revision int
+	revisions := map[string]int{}
 
 	kub.logCxt.Infof("Importing policy '%s'", filepath)
 	pods, err := kub.GetCiliumPods(namespace)
 	if err != nil {
 		return "", err
 	}
+
 	for _, v := range pods {
 		revi, err := kub.CiliumPolicyRevision(v)
 		if err != nil {
 			return "", err
 		}
-
-		if revi > revision {
-			revision = revi
-		}
+		revisions[v] = revi
+		kub.logCxt.Infof("CiliumImportPolicy: pod '%s' has revision %v", v, revi)
 	}
+
 	kub.logCxt.Infof("CiliumImportPolicy: path='%s' with revision '%d'", filepath, revision)
 	if status := kub.Apply(filepath); !status.WasSuccessful() {
 		return "", fmt.Errorf("Can't apply the policy '%s'", filepath)
 	}
 
 	body := func() bool {
+		waitingRev := map[string]int{}
+
 		valid := true
 		for _, v := range pods {
-
 			revi, err := kub.CiliumPolicyRevision(v)
 			if err != nil {
 				kub.logCxt.Errorf("CiliumImportPolicy: error on get revision %s", err)
 				return false
 			}
-
-			if revi <= revision {
+			if revi <= revisions[v] {
+				kub.logCxt.Infof("CiliumImportPolicy: Invalid revision(%v) for pod '%s' was on '%v'", revi, v, revisions[v])
 				valid = false
+			} else {
+				waitingRev[v] = revi
 			}
 		}
 
 		if valid == true {
 			//Wait until all the pods are synced
-			for _, v := range pods {
-				kub.Exec(namespace, v, fmt.Sprintf("cilium policy wait %d", revi))
+			for pod, rev := range waitingRev {
+				kub.logCxt.Infof("CiliumImportPolicy: Wait for endpoints to sync on pod '%s'", pod)
+				kub.Exec(namespace, pod, fmt.Sprintf("cilium policy wait %d", rev))
+				kub.logCxt.Infof("CiliumImportPolicy: reivision %d in pod '%s' is ready", rev, pod)
 			}
-			kub.logCxt.Infof("CiliumImportPolicy: reivision %d is ready", revi)
 			return true
 		}
 		return false
@@ -318,12 +402,13 @@ func (kub *Kubectl) CiliumReport(namespace string, pod string, commands []string
 	data := kub.Logs(namespace, pod)
 	fmt.Fprintln(wr, data.Output())
 
+	data = kub.Node.Exec("kubectl get pods -o wide")
+	fmt.Fprintln(wr, data.Output())
+
 	for _, cmd := range commands {
-		out, err := kub.Exec(namespace, pod, cmd)
-		if err != nil {
-			kub.logCxt.Errorf("Error executing command '%s' on pod %s: %s", cmd, pod, err)
-		}
-		fmt.Fprintln(wr, out)
+		command := fmt.Sprintf("kubectl exec -n %s %s -- %s", namespace, pod, cmd)
+		out := kub.Node.Exec(command)
+		fmt.Fprintln(wr, out.CombineOutput())
 	}
 	fmt.Fprint(wr, "StackTrace Ends\n")
 	return nil

@@ -58,7 +58,7 @@ func SetupDummy() {
 	switch backend {
 	case Consul:
 		consulConfig = consulAPI.DefaultConfig()
-		consulConfig.Address = "127.0.0.1:8501"
+		consulConfig.Address = "consul:8500"
 
 	case Etcd:
 		etcdConfig = &etcdAPI.Config{}

@@ -12,10 +12,10 @@ if echo $(hostname) | grep "k8s" -q;
 then
     if [[ "$(hostname)" == "k8s1" ]]; then
         make docker-image-dev
-        docker tag cilium 192.168.36.11:5000/cilium/cilium-dev
-        docker push 192.168.36.11:5000/cilium/cilium-dev
+        docker tag cilium k8s1:5000/cilium/cilium-dev
+        docker push k8s1:5000/cilium/cilium-dev
     else
-        echo "No master, no need to compile"
+        echo "No on master K8S node; no need to compile Cilium container"
     fi
 else
     make
@@ -23,10 +23,10 @@ else
     mkdir -p /etc/sysconfig/
     cp -f contrib/systemd/cilium /etc/sysconfig/cilium
     for svc in $(ls -1 ./contrib/systemd/*.*); do
-            cp -f "${svc}"  /etc/systemd/system/
-            service=$(echo "$svc" | sed -E -n 's/.*\/(.*?).(service|mount)/\1.\2/p')
-            echo "service $service"
-            systemctl enable $service || echo "service $service failed"
-            systemctl restart $service || echo "service $service failed to restart"
+        cp -f "${svc}"  /etc/systemd/system/
+        service=$(echo "$svc" | sed -E -n 's/.*\/(.*?).(service|mount)/\1.\2/p')
+        echo "service $service"
+        systemctl enable $service || echo "service $service failed"
+        systemctl restart $service || echo "service $service failed to restart"
     done
 fi

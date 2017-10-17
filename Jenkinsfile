@@ -19,7 +19,13 @@ pipeline {
                 sh 'echo "" > test/ssh-config'
             }
         }
-        stage('Test') {
+        stage('UnitTesting') {
+            agent any
+            steps {
+                sh "make tests"
+            }
+        }
+        stage('BDD-Test') {
             agent any
             environment {
                 GOPATH="${WORKSPACE}"

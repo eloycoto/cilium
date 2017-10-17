@@ -1,7 +1,7 @@
 include Makefile.defs
 
 SUBDIRS = plugins bpf cilium daemon monitor
-GOFILES ?= $(shell go list ./... | grep -v /vendor/ | grep -v /contrib/)
+GOFILES ?= $(shell go list ./... | grep -v /vendor/ | grep -v /contrib/ | grep -v /test)
 GOLANGVERSION = $(shell go version 2>/dev/null | grep -Eo '(go[0-9].[0-9])')
 GOLANG_SRCFILES=$(shell for pkg in $GOFILES; do find $(pkg) -name *.go -print; done | grep -v /vendor/)
 BPF_SRCFILES=$(shell find bpf/ -name *.[ch] -print)
@@ -15,10 +15,12 @@ build: $(SUBDIRS)
 $(SUBDIRS): force
 	@ $(MAKE) -C $@ all
 
-tests: tests-common tests-consul
+tests: tests-common
 
 tests-common: force
-	tests/00-fmt.sh
+	# tests/00-fmt.sh
+	cd daemon && make go-bindata
+	docker-compose -f test/docker-compose.yml run test
 	go vet $(GOFILES)
 
 tests-etcd:
@@ -46,13 +48,6 @@ tests-etcd:
 	docker rm -f "cilium-etcd-test-container"
 
 tests-consul:
-	@docker rm -f "cilium-consul-test-container" 2> /dev/null || true
-	-docker run -d \
-           --name "cilium-consul-test-container" \
-           -p 8501:8500 \
-           -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true}' \
-           consul:0.8.3 \
-           agent -client=0.0.0.0 -server -bootstrap-expect 1
 	echo "mode: count" > coverage-all.out
 	echo "mode: count" > coverage.out
 	$(foreach pkg,$(GOFILES),\
@@ -64,7 +59,6 @@ tests-consul:
 	rm coverage-all.out
 	rm coverage.out
 	@rmdir ./daemon/1 ./daemon/1_backup 2> /dev/null || true
-	docker rm -f "cilium-consul-test-container"
 
 clean-tags:
 	-$(MAKE) -C bpf/ clean-tags

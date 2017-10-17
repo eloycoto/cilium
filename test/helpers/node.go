@@ -71,8 +71,7 @@ func (node *Node) Execute(cmd string, stdout io.Writer, stderr io.Writer) bool {
 	}
 
 	command := &SSHCommand{
-		Path: cmd,
-		// Env:    node.env,
+		Path:   cmd,
 		Stdin:  os.Stdin,
 		Stdout: stdout,
 		Stderr: stderr,
