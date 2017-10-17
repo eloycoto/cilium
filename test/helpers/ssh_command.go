@@ -1,18 +1,33 @@
+// Copyright 2017 Authors of Cilium
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package helpers
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/kevinburke/ssh_config"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
+
+	log "github.com/sirupsen/logrus"
 )
 
 //SSHConfigPath is where the vagrant ssh-config is located.
@@ -35,7 +50,7 @@ type SSHClient struct {
 	client *ssh.Client
 }
 
-//SSHConfig parser
+//SSHConfig contains metadata for running an SSH session .
 type SSHConfig struct {
 	target       string
 	host         string
@@ -47,7 +62,7 @@ type SSHConfig struct {
 //SSHConfigs map with all sshconfig
 type SSHConfigs map[string]*SSHConfig
 
-//GetSSHClient return the SSHClient for a SSHConfig
+//GetSSHClient initializes an SSHClient based on the provided SSHConfig
 func (cfg *SSHConfig) GetSSHClient() *SSHClient {
 
 	sshConfig := &ssh.ClientConfig{
@@ -65,23 +80,23 @@ func (cfg *SSHConfig) GetSSHClient() *SSHClient {
 	}
 }
 
-//GetSSHAgent return the sshAuthmethod for a SSHConfig
+//GetSSHAgent returns the ssh.AuthMethod corresponding to SSHConfig cfg
 func (cfg *SSHConfig) GetSSHAgent() ssh.AuthMethod {
 	key, err := ioutil.ReadFile(cfg.identityFile)
 	if err != nil {
-		log.Fatalf("Unable to retrieve ssh-key: %s", err)
+		log.Fatalf("unable to retrieve ssh-key on target '%s': %s", cfg.target, err)
 	}
 
 	signer, err := ssh.ParsePrivateKey(key)
 	if err != nil {
-		log.Fatalf("unable to parse private key: %s", err)
+		log.Fatalf("unable to parse private key on target '%s': %s", cfg.target, err)
 	}
 	return ssh.PublicKeys(signer)
 }
 
-//ImportSSHconfig import path and create all SSHConfigs needed
+//ImportSSHconfig imports the SSH configuration stored at the provided path.
+//Returns an error if the SSH configuration could not be instantiated.
 func ImportSSHconfig(path string) (SSHConfigs, error) {
-	// var result SSHConfigs
 	result := make(SSHConfigs)
 	f, err := os.Open(path)
 	if err != nil {
@@ -108,7 +123,9 @@ func ImportSSHconfig(path string) (SSHConfigs, error) {
 	return result, nil
 }
 
-//RunCommand run SSHCommand over ssh
+//RunCommand runs a SSHCommand using SSHClient client. It will return the
+//stdout and a error.
+//Error will happen when a session can't be initialized correctly
 func (client *SSHClient) RunCommand(cmd *SSHCommand) ([]byte, error) {
 	var (
 		session *ssh.Session
@@ -128,18 +145,27 @@ func (client *SSHClient) RunCommand(cmd *SSHCommand) ([]byte, error) {
 	return session.Output(cmd.Path)
 }
 
-//RunCommandWithTimeout run a command and kill after a timeout
-func (client *SSHClient) RunCommandWithTimeout(cmd *SSHCommand, timeout time.Duration) error {
+//RunCommandContext run a ssh command but with a context, so can be cancel when is needed
+func (client *SSHClient) RunCommandContext(ctx context.Context, cmd *SSHCommand) error {
+	if ctx == nil {
+		panic("nil Context")
+	}
+
 	var (
 		session *ssh.Session
 		err     error
 	)
 
-	done := time.After(timeout * time.Second)
-
 	if session, err = client.newSession(); err != nil {
 		return err
 	}
+
+	modes := ssh.TerminalModes{
+		ssh.ECHO:          1,     // enable echoing
+		ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
+		ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
+	}
+	session.RequestPty("xterm-256color", 80, 80, modes)
 	defer session.Close()
 
 	stderr, err := session.StderrPipe()
@@ -154,15 +180,17 @@ func (client *SSHClient) RunCommandWithTimeout(cmd *SSHCommand, timeout time.Dur
 	}
 	go io.Copy(cmd.Stdout, stdout)
 
-	go session.Output(cmd.Path)
-
-	for {
+	go func() {
 		select {
-		case <-done:
-			session.Signal(ssh.SIGKILL)
-			return nil
+		case <-ctx.Done():
+			if err := session.Signal(ssh.SIGHUP); err != nil {
+				log.Errorf("failed to kill command: %s", err)
+			}
+			session.Close()
 		}
-	}
+	}()
+	err = session.Run(cmd.Path)
+	return nil
 }
 
 func (client *SSHClient) newSession() (*ssh.Session, error) {
@@ -191,7 +219,8 @@ func (client *SSHClient) newSession() (*ssh.Session, error) {
 	return session, nil
 }
 
-//SSHAgent return the ssh.Authmethod
+//SSHAgent return the ssh.Authmethod using the Public keys. If can connect to
+//SSH_AUTH_SHOCK it will return nil
 func SSHAgent() ssh.AuthMethod {
 	if sshAgent, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK")); err == nil {
 		return ssh.PublicKeysCallback(agent.NewClient(sshAgent).Signers)
@@ -199,7 +228,8 @@ func SSHAgent() ssh.AuthMethod {
 	return nil
 }
 
-//GetSSHclient return a SSHClient for a specific host/port
+//GetSSHclient initializes an SSHClient for the specified host/port/user
+//combination.
 func GetSSHclient(host string, port int, user string) *SSHClient {
 
 	sshConfig := &ssh.ClientConfig{

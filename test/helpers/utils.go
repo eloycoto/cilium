@@ -1,3 +1,17 @@
+// Copyright 2017 Authors of Cilium
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package helpers
 
 import (
@@ -9,13 +23,13 @@ import (
 	"time"
 )
 
-//Sleep sleep a function for a specific time
+//Sleep sleeps for the specified duration in seconds
 func Sleep(delay time.Duration) {
 	time.Sleep(delay * time.Second)
 }
 
-//CountValues Filter an array of strings and return the number of matches and
-//the len of the array
+//CountValues filters data based on the specified key. Returns the number of
+//matches in data for key and the length of data.
 func CountValues(key string, data []string) (int, int) {
 	var result int
 
@@ -46,14 +60,15 @@ func RenderTemplateToFile(filename string, tmplt string, perm os.FileMode) error
 	return nil
 }
 
-//TimeoutConfig struct to define a timeout and Ticker
+//TimeoutConfig represents the configuration for the timeout of a command.
 type TimeoutConfig struct {
-	Ticker  time.Duration
-	Timeout time.Duration
+	Ticker  time.Duration // Check interval in duration.
+	Timeout time.Duration // Timeout definition
 }
 
-//WithTimeout helper function that execute a function each TimeoutConfig.Ticker(default 3) and
-// it'll die if on timeout no true is returned
+//WithTimeout executes function body using the interval specified in config
+//until the timeout in config is reached. Returns an error if the timeout is
+//exceeded for body to execute successfully.
 func WithTimeout(body func() bool, msg string, config *TimeoutConfig) error {
 	if config.Ticker == 0 {
 		config.Ticker = 5
