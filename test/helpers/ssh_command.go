@@ -30,7 +30,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//SSHConfigPath is where the vagrant ssh-config is located.
+//SSHConfigPath ssh-config temp path for the different scopes
 var SSHConfigPath = "ssh-config"
 
 //SSHCommand struct to send commands over SSHClient
@@ -206,14 +206,14 @@ func (client *SSHClient) newSession() (*ssh.Session, error) {
 			client.Config)
 
 		if err != nil {
-			return nil, fmt.Errorf("Failed to dial: %s", err)
+			return nil, fmt.Errorf("failed to dial: %s", err)
 		}
 		client.client = connection
 	}
 
 	session, err := connection.NewSession()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create session: %s", err)
+		return nil, fmt.Errorf("failed to create session: %s", err)
 	}
 
 	return session, nil

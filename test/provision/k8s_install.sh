@@ -21,7 +21,8 @@ cat <<EOF > /etc/hosts
 ::1     localhost ip6-localhost ip6-loopback
 ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
-$IP     $NODE
+192.168.36.11 k8s1
+192.168.36.12 k8s2
 EOF
 
 cat <<EOF > /etc/apt/sources.list.d/kubernetes.list
@@ -68,7 +69,7 @@ else
     kubeadm join --token=$TOKEN 192.168.36.11:6443
     cp /etc/kubernetes/kubelet.conf ${CILIUM_CONFIG_DIR}/kubeconfig
     sudo systemctl stop etcd
-    docker pull 192.168.36.11:5000/cilium/cilium-dev:latest
+    docker pull k8s1:5000/cilium/cilium-dev:latest
 fi
 
 sudo touch /etc/provision_finished

@@ -34,7 +34,7 @@ type CmdRes struct {
 	exit   bool
 }
 
-//WasSuccessful returns true if the command was sucessfull
+//WasSuccessful returns true if the command was sucessful
 func (res *CmdRes) WasSuccessful() bool {
 	return res.exit
 }

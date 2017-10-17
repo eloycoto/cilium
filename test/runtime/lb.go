@@ -87,9 +87,8 @@ var _ = Describe("RuntimeLB", func() {
 			"Service can't be retrieved correctly")
 		Expect(result.Output()).Should(ContainSubstring("[::1]:90"), fmt.Sprintf(
 			"No service backends added correctly '%s'", result.Output()))
-
 		helpers.Sleep(5)
-		//FIXME: This need to be with Wait,Timeout
+		//TODO: This need to be with Wait,Timeout
 		//Checking that bpf lb list is working correctly
 		result = cilium.Exec("bpf lb list")
 		Expect(result.WasSuccessful()).Should(BeTrue(),
@@ -276,8 +275,8 @@ tc filter add dev lbtest2 ingress bpf da obj tmp_lb.o sec from-netdev
 		return err
 	}
 	path := "/vagrant/create_veth_interface"
-	node.Exec("sudo ip addr add fd02:1:1:1:1:1:1:1 dev cilium_host")
-	//FIXME: Here we need to check if executes correctly
+	res := node.Exec("sudo ip addr add fd02:1:1:1:1:1:1:1 dev cilium_host")
+	Expect(res.WasSuccessful()).Should(BeTrue())
 	node.Exec(fmt.Sprintf("sudo %s", path))
 	return os.Remove(path)
 }

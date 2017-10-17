@@ -50,6 +50,7 @@ var _ = Describe("K8sTunnelTest", func() {
 
 	BeforeEach(func() {
 		initialize()
+		kubectl.NodeCleanMetadata()
 		kubectl.Apply(demoDSPath)
 	}, 600)
 
@@ -66,6 +67,8 @@ var _ = Describe("K8sTunnelTest", func() {
 		ciliumPod, err := kubectl.GetCiliumPodOnNode("kube-system", "k8s1")
 		Expect(err).Should(BeNil())
 
+		_, err = kubectl.CiliumNodesWait()
+		Expect(err).Should(BeNil())
 		//Make sure that we delete the ds in case of fail
 		defer kubectl.Delete(path)
 
@@ -95,6 +98,9 @@ var _ = Describe("K8sTunnelTest", func() {
 		Expect(err).Should(BeNil())
 
 		ciliumPod, err := kubectl.GetCiliumPodOnNode("kube-system", "k8s1")
+		Expect(err).Should(BeNil())
+
+		_, err = kubectl.CiliumNodesWait()
 		Expect(err).Should(BeNil())
 
 		//Make sure that we delete the ds in case of fail

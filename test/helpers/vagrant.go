@@ -33,9 +33,14 @@ type Vagrant struct{}
 func (vagrant *Vagrant) Create(scope string, ssh ...bool) error {
 	createCMD := "vagrant up %s --provision"
 	for _, v := range vagrant.Status(scope) {
-		if v == "running" {
+		switch v {
+		case "running":
 			createCMD = "vagrant provision %s"
-			break
+		case "not_created":
+			createCMD = "vagrant up %s --provision"
+		default:
+			//Sometimes server are stoped and not destroyed. Destroy just in case
+			vagrant.Destroy(scope)
 		}
 	}
 	createCMD = fmt.Sprintf(createCMD, scope)
@@ -123,7 +128,7 @@ func (vagrant *Vagrant) getPath(prog string) string {
 	return path
 }
 
-//Status return a map with the server name (key) and the status as value
+//Status returns a mapping of Vagrant VM name to its status
 func (vagrant *Vagrant) Status(key string) map[string]string {
 	result := map[string]string{}
 
