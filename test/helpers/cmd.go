@@ -1,3 +1,17 @@
+// Copyright 2017 Authors of Cilium
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package helpers
 
 import (
@@ -20,22 +34,27 @@ type CmdRes struct {
 	exit   bool
 }
 
-//Correct return true if the command was sucessfull
-func (res *CmdRes) Correct() bool {
+//WasSuccessful returns true if the command was sucessfull
+func (res *CmdRes) WasSuccessful() bool {
 	return res.exit
 }
 
-//IntOutput return the output as integer
+//CountLines return the number of stdout lines
+func (res *CmdRes) CountLines() int {
+	return len(strings.Split(res.stdout.String(), "\n"))
+}
+
+//IntOutput returns the stdout of res as integer
 func (res *CmdRes) IntOutput() (int, error) {
 	return strconv.Atoi(strings.Trim(res.stdout.String(), "\n"))
 }
 
-//SingleOut Return a simple string without \n
+//SingleOut returns the stdout of res without any newline characters
 func (res *CmdRes) SingleOut() string {
 	return strings.Trim(res.stdout.String(), "\n")
 }
 
-//FindResults filter using jsonpath but return values instead of string
+//FindResults filter CmdRes using jsonpath and returns an interface with the values
 func (res *CmdRes) FindResults(filter string) ([]reflect.Value, error) {
 
 	var data interface{}
@@ -56,7 +75,7 @@ func (res *CmdRes) FindResults(filter string) ([]reflect.Value, error) {
 	return result, nil
 }
 
-//Filter filter cmdRes using jsonpath filter
+//Filter filters cmdRes using the provided JSONPath filter.
 func (res *CmdRes) Filter(filter string) (*bytes.Buffer, error) {
 	var data interface{}
 	result := new(bytes.Buffer)
@@ -74,7 +93,8 @@ func (res *CmdRes) Filter(filter string) (*bytes.Buffer, error) {
 	return result, nil
 }
 
-//KVOutput This is a helper functon that return a map with the key=val output.
+// KVOutput returns a map of the stdout of the provided CmdRes split based on
+// the separator '='.
 // This is going to be used when the output will be like this:
 // 		a=1
 // 		b=2
@@ -91,19 +111,19 @@ func (res *CmdRes) KVOutput() map[string]string {
 	return result
 }
 
-//Output return the stdout output
+//Output returns the contents of stdout
 func (res *CmdRes) Output() *bytes.Buffer {
 	return res.stdout
 }
 
-//CombineOutput return stdout and stderr in a buffer
+//CombineOutput returns the combined output of stdout and stderr
 func (res *CmdRes) CombineOutput() *bytes.Buffer {
 	result := res.stdout
 	result.WriteString(res.stderr.String())
 	return result
 }
 
-//UnMarshal unmarshal json to an interface
+//UnMarshal unmarshals res's stdout into data
 func (res *CmdRes) UnMarshal(data interface{}) error {
 	err := json.Unmarshal(res.stdout.Bytes(), &data)
 	return err

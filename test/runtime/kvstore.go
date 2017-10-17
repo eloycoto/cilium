@@ -1,8 +1,21 @@
-package RunT
+// Copyright 2017 Authors of Cilium
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package RuntimeTest
 
 import (
-	"fmt"
-	"time"
+	"context"
 
 	"github.com/cilium/cilium/test/helpers"
 	. "github.com/onsi/ginkgo"
@@ -10,9 +23,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var _ = Describe("RunKVStoreTest", func() {
+var _ = Describe("RuntimeKVStoreTest", func() {
 
-	var initilized bool
+	var initialized bool
 	var networkName string = "cilium-net"
 
 	var netperfImage string = "tgraf/netperf"
@@ -20,14 +33,14 @@ var _ = Describe("RunKVStoreTest", func() {
 	var docker *helpers.Docker
 	var cilium *helpers.Cilium
 
-	initilize := func() {
-		if initilized == true {
+	initialize := func() {
+		if initialized == true {
 			return
 		}
-		logger = log.WithFields(log.Fields{"test": "RunKVStoreTest"})
+		logger = log.WithFields(log.Fields{"testName": "RuntimeKVStoreTest"})
 		logger.Info("Starting")
 		docker, cilium = helpers.CreateNewRuntimeHelper("runtime", logger)
-		initilized = true
+		initialized = true
 	}
 	containers := func(option string) {
 		switch option {
@@ -40,41 +53,25 @@ var _ = Describe("RunKVStoreTest", func() {
 		}
 	}
 
-	done := make(chan string, 1)
-	agent := func(option string) {
-		cmd := fmt.Sprintf("sudo /usr/bin/cilium-agent %s --debug", option)
-		killCmd := "sudo kill -9 $(pgrep cilium-agent)"
-		go docker.Node.Exec(cmd)
-		timeout := time.After(300 * time.Second)
-		for {
-			select {
-			case <-done:
-				logger.Info("killing cilium-agent daemon")
-				docker.Node.Exec(killCmd)
-				return
-			case <-timeout:
-				logger.Info("killing cilium-agent due timeout")
-				fmt.Printf("Timeout")
-				docker.Node.Exec(killCmd)
-				return
-			}
-		}
-	}
-
 	BeforeEach(func() {
-		initilize()
+		initialize()
 		docker.Node.Exec("sudo systemctl stop cilium")
 	}, 150)
 
 	AfterEach(func() {
 		containers("delete")
-		done <- "Fail"
 		docker.Node.Exec("sudo systemctl start cilium")
 	})
 
 	It("Consul KVStore", func() {
-		go agent("--kvstore consul --kvstore-opt consul.address=127.0.0.1:8500")
-		cilium.WaitUntilReady(150)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		cilium.Node.ExecContext(
+			ctx,
+			"sudo cilium-agent --kvstore consul --kvstore-opt consul.address=127.0.0.1:8500 --debug")
+		err := cilium.WaitUntilReady(150)
+		Expect(err).Should(BeNil())
+
 		docker.Node.Exec("sudo systemctl restart cilium-docker")
 		helpers.Sleep(2)
 		containers("create")
@@ -82,12 +79,17 @@ var _ = Describe("RunKVStoreTest", func() {
 		eps, err := cilium.GetEndpointsNames()
 		Expect(err).Should(BeNil())
 		Expect(len(eps)).To(Equal(1))
-
 	})
 
 	It("Etcd KVStore", func() {
-		go agent("--kvstore etcd --kvstore-opt etcd.address=127.0.0.1:4001")
-		cilium.WaitUntilReady(150)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		cilium.Node.ExecContext(
+			ctx,
+			"sudo cilium-agent --kvstore etcd --kvstore-opt etcd.address=127.0.0.1:4001")
+		err := cilium.WaitUntilReady(150)
+		Expect(err).Should(BeNil())
+
 		docker.Node.Exec("sudo systemctl restart cilium-docker")
 		helpers.Sleep(2)
 		containers("create")

@@ -1,4 +1,4 @@
-package RunT
+package RuntimeTest
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var _ = Describe("RunConnectivyTest", func() {
+var _ = Describe("RuntimeConnectivityTest", func() {
 
 	var initilized bool
 	var networkName string = "cilium-net"
@@ -23,7 +23,7 @@ var _ = Describe("RunConnectivyTest", func() {
 		if initilized == true {
 			return
 		}
-		logger = log.WithFields(log.Fields{"test": "RunConnectivyTest"})
+		logger = log.WithFields(log.Fields{"test": "RunConnectivityTest"})
 		logger.Info("Starting")
 		docker, cilium = helpers.CreateNewRuntimeHelper("runtime", logger)
 		cilium.WaitUntilReady(100)
@@ -62,17 +62,17 @@ var _ = Describe("RunConnectivyTest", func() {
 
 		By("Client can ping to server IPV6")
 		res := docker.ContainerExec("client", fmt.Sprintf("ping6 -c 4 %s", serverIPv6))
-		Expect(res.Correct()).Should(BeTrue())
+		Expect(res.WasSuccessful()).Should(BeTrue())
 
 		By("Client can ping to server Ipv4")
 		res = docker.ContainerExec("client", fmt.Sprintf("ping -c 5 %s", serverIP))
-		Expect(res.Correct()).Should(BeTrue())
+		Expect(res.WasSuccessful()).Should(BeTrue())
 
 		By("Netperf to server from client IPv6")
 		cmd := fmt.Sprintf(
 			"netperf -c -C -t TCP_SENDFILE -H %s", serverIPv6)
 		res = docker.ContainerExec("client", cmd)
-		Expect(res.Correct()).Should(BeTrue())
+		Expect(res.WasSuccessful()).Should(BeTrue())
 	}, 300)
 
 	It("Test containers connectivity WITH policy", func() {
@@ -88,17 +88,17 @@ var _ = Describe("RunConnectivyTest", func() {
 
 		By("Client can ping to server IPV6")
 		res := docker.ContainerExec("client", fmt.Sprintf("ping6 -c 4 %s", serverIPv6))
-		Expect(res.Correct()).Should(BeTrue())
+		Expect(res.WasSuccessful()).Should(BeTrue())
 
 		By("Client can ping to server Ipv4")
 		res = docker.ContainerExec("client", fmt.Sprintf("ping -c 5 %s", serverIP))
-		Expect(res.Correct()).Should(BeTrue())
+		Expect(res.WasSuccessful()).Should(BeTrue())
 
 		By("Netperf to server from client IPv6")
 		cmd := fmt.Sprintf(
 			"netperf -c -C -t TCP_SENDFILE -H %s", serverIPv6)
 		res = docker.ContainerExec("client", cmd)
-		Expect(res.Correct()).Should(BeTrue())
+		Expect(res.WasSuccessful()).Should(BeTrue())
 
 		By("Ping from host to server")
 		ping := docker.Node.Execute(fmt.Sprintf("ping -c 4 %s", serverIP), nil, nil)
@@ -121,11 +121,11 @@ var _ = Describe("RunConnectivyTest", func() {
 
 		res := docker.ContainerExec("client", fmt.Sprintf(
 			"ping6 -c 4 ::FFFF:%s", server["IPv4"]))
-		Expect(res.Correct()).Should(BeTrue())
+		Expect(res.WasSuccessful()).Should(BeTrue())
 
 		res = docker.ContainerExec("server", fmt.Sprintf(
 			"ping6 -c 4 ::FFFF:%s", client["IPv4"]))
-		Expect(res.Correct()).Should(BeFalse(), "Unexpected NAT46 access")
+		Expect(res.WasSuccessful()).Should(BeFalse(), "Unexpected NAT46 access")
 	})
 })
 
@@ -143,7 +143,7 @@ var _ = Describe("RunConntrackTest", func() {
 		if initilized == true {
 			return
 		}
-		logger = log.WithFields(log.Fields{"test": "RunConnectivyTest"})
+		logger = log.WithFields(log.Fields{"test": "RunConntrackTest"})
 		logger.Info("Starting")
 		docker, cilium = helpers.CreateNewRuntimeHelper("runtime", logger)
 		docker.NetworkCreate(networkName, "")
@@ -159,46 +159,46 @@ var _ = Describe("RunConntrackTest", func() {
 
 		By("Client pinging server IPv6")
 		res := docker.ContainerExec("client", fmt.Sprintf("ping6 -c 4 %s", srvIP["IPv6"]))
-		Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+		Expect(res.WasSuccessful()).Should(BeTrue(), fmt.Sprintf(
 			"Client can't ping to server %s", srvIP["IPv6"]))
 
 		By("Client pinging server IPv4")
 		res = docker.ContainerExec("client", fmt.Sprintf("ping -c 4 %s", srvIP["IPv4"]))
-		Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+		Expect(res.WasSuccessful()).Should(BeTrue(), fmt.Sprintf(
 			"Client can't ping to server %s", srvIP["IPv4"]))
 
 		By("Client netcat to port 777 IPv6")
 		res = docker.ContainerExec("client", fmt.Sprintf("nc -w 4 %s 777", srvIP["IPv6"]))
-		Expect(res.Correct()).Should(BeFalse(), fmt.Sprintf(
+		Expect(res.WasSuccessful()).Should(BeFalse(), fmt.Sprintf(
 			"Client can connect to %s:777. Should fail", srvIP["IPv6"]))
 
 		By("Client netcat to port 777 IPv4")
 		res = docker.ContainerExec("client", fmt.Sprintf("nc -w 4 %s 777", srvIP["IPv4"]))
-		Expect(res.Correct()).Should(BeFalse(), fmt.Sprintf(
+		Expect(res.WasSuccessful()).Should(BeFalse(), fmt.Sprintf(
 			"Client can connect to %s:777. Should fail", srvIP["IPv4"]))
 
 		By("Client netperf to server IPv6")
 		res = docker.ContainerExec("client", fmt.Sprintf(
 			"netperf -l 3 -t TCP_RR -H %s", srvIP["IPv6"]))
-		Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+		Expect(res.WasSuccessful()).Should(BeTrue(), fmt.Sprintf(
 			"Client can't netperf to server %s", srvIP["IPv6"]))
 
 		By("Client netperf to server IPv4")
 		res = docker.ContainerExec("client", fmt.Sprintf(
 			"netperf -l 3 -t TCP_RR -H %s", srvIP["IPv4"]))
-		Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+		Expect(res.WasSuccessful()).Should(BeTrue(), fmt.Sprintf(
 			"Client can't netperf to server %s", srvIP["IPv4"]))
 
 		By("Client UDP netperf to server IPv6")
 		res = docker.ContainerExec("client", fmt.Sprintf(
 			"netperf -l 3 -t UDP_RR -H %s", srvIP["IPv6"]))
-		Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+		Expect(res.WasSuccessful()).Should(BeTrue(), fmt.Sprintf(
 			"Client can't netperf to server %s", srvIP["IPv6"]))
 
 		By("Client UDP netperf to server IPv4")
 		res = docker.ContainerExec("client", fmt.Sprintf(
 			"netperf -l 3 -t UDP_RR -H %s", srvIP["IPv4"]))
-		Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+		Expect(res.WasSuccessful()).Should(BeTrue(), fmt.Sprintf(
 			"Client can't netperf to server %s", srvIP["IPv4"]))
 
 		By("Ping from host to server IPv6")
@@ -211,12 +211,12 @@ var _ = Describe("RunConntrackTest", func() {
 
 		By("Ping from server to client IPv6")
 		res = docker.ContainerExec("server", fmt.Sprintf("ping6 -c 4 %s", cliIP["IPv6"]))
-		Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+		Expect(res.WasSuccessful()).Should(BeTrue(), fmt.Sprintf(
 			"Server can't ping to client %s", cliIP["IPv6"]))
 
 		By("Ping from server to client IPv4")
 		res = docker.ContainerExec("server", fmt.Sprintf("ping -c 4 %s", cliIP["IPv4"]))
-		Expect(res.Correct()).Should(BeTrue(), fmt.Sprintf(
+		Expect(res.WasSuccessful()).Should(BeTrue(), fmt.Sprintf(
 			"Server can't ping to client %s", cliIP["IPv4"]))
 	}
 
@@ -228,6 +228,10 @@ var _ = Describe("RunConntrackTest", func() {
 	})
 
 	AfterEach(func() {
+		if CurrentGinkgoTestDescription().Failed {
+			cilium.ReportFailed()
+		}
+
 		docker.ContainerRm("server")
 		docker.ContainerRm("client")
 	})

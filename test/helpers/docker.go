@@ -1,3 +1,17 @@
+// Copyright 2017 Authors of Cilium
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package helpers
 
 import (
@@ -14,7 +28,7 @@ type Docker struct {
 	logCxt *log.Entry
 }
 
-//CreateDocker return a new Docker instance based on target
+//CreateDocker returns a new Docker instance based on the provided target
 func CreateDocker(target string, log *log.Entry) *Docker {
 	log.Infof("Docker: set target to '%s'", target)
 	node := CreateNodeFromTarget(target)
@@ -28,7 +42,7 @@ func CreateDocker(target string, log *log.Entry) *Docker {
 	}
 }
 
-//ContainerExec execute a command in a container
+//ContainerExec executes cmd in the container with the provided name
 func (do *Docker) ContainerExec(name string, cmd string) *CmdRes {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
@@ -43,7 +57,8 @@ func (do *Docker) ContainerExec(name string, cmd string) *CmdRes {
 	}
 }
 
-//ContainerCreate create a container on docker
+//ContainerCreate runs an instance of the provided Docker image with network,
+//and with the provided options.
 func (do *Docker) ContainerCreate(name, image, net, options string) *CmdRes {
 
 	stdout := new(bytes.Buffer)
@@ -78,7 +93,7 @@ func (do *Docker) ContainerRm(name string) *CmdRes {
 	}
 }
 
-//ContainerInspect Inspect a container
+//ContainerInspect runs docker inspect for the container with the provided name
 func (do *Docker) ContainerInspect(name string) *CmdRes {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
@@ -94,7 +109,8 @@ func (do *Docker) ContainerInspect(name string) *CmdRes {
 	}
 }
 
-//ContainerInspectNet return the Net details for a container
+//ContainerInspectNet returns the networking information for the container with
+//the provided name
 func (do *Docker) ContainerInspectNet(name string) (map[string]string, error) {
 	res := do.ContainerInspect(name)
 	properties := map[string]string{
@@ -104,10 +120,10 @@ func (do *Docker) ContainerInspectNet(name string) (map[string]string, error) {
 		"NetworkID":         "NetworkID",
 	}
 
-	if !res.Correct() {
-		return nil, fmt.Errorf("Can't get the container")
+	if !res.WasSuccessful() {
+		return nil, fmt.Errorf("Can not get the container %s", name)
 	}
-	filter := `{ [0].NetworkSettings.Networks.cilium-net }`
+	filter := fmt.Sprintf(`{ [0].NetworkSettings.Networks.%s }`, networkName)
 	result := make(map[string]string)
 	data, err := res.FindResults(filter)
 	if err != nil {
@@ -124,7 +140,7 @@ func (do *Docker) ContainerInspectNet(name string) (map[string]string, error) {
 	return result, nil
 }
 
-//NetworkCreate create a new docker network
+//NetworkCreate creates a Docker network of the provided name with the specified subnet
 func (do *Docker) NetworkCreate(name string, subnet string) *CmdRes {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
@@ -144,7 +160,7 @@ func (do *Docker) NetworkCreate(name string, subnet string) *CmdRes {
 	}
 }
 
-//NetworkDelete create a new docker network
+//NetworkDelete deletes the Docker network of the provided name
 func (do *Docker) NetworkDelete(name string) *CmdRes {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
@@ -158,7 +174,8 @@ func (do *Docker) NetworkDelete(name string) *CmdRes {
 	}
 }
 
-//NetworkGet return all the docker network information
+//NetworkGet returns all of the Docker network configuration for the provided
+//network
 func (do *Docker) NetworkGet(name string) *CmdRes {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
@@ -173,7 +190,8 @@ func (do *Docker) NetworkGet(name string) *CmdRes {
 	}
 }
 
-//SampleContainersActions This create/delete a bunch of containers to test
+// SampleContainersActions creates or deletes various containers used for
+// testing Cilium and adds said containers to the provided Docker network
 func (do *Docker) SampleContainersActions(mode string, networkName string) {
 	images := map[string]string{
 		"httpd1": "cilium/demo-httpd",

@@ -1,4 +1,18 @@
-package RunT
+// Copyright 2017 Authors of Cilium
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package RuntimeTest
 
 import (
 	"github.com/cilium/cilium/test/helpers"
@@ -7,24 +21,24 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var _ = Describe("RunChaosMonkey", func() {
+var _ = Describe("RuntimeChaosMonkey", func() {
 
-	var initilized bool
+	var initialized bool
 	var networkName string = "cilium-net"
 	var netperfImage string = "tgraf/netperf"
 	var logger *log.Entry
 	var docker *helpers.Docker
 	var cilium *helpers.Cilium
 
-	initilize := func() {
-		if initilized == true {
+	initialize := func() {
+		if initialized == true {
 			return
 		}
-		logger = log.WithFields(log.Fields{"test": "RunChaosMonkey"})
+		logger = log.WithFields(log.Fields{"testName": "RuntimeChaosMonkey"})
 		logger.Info("Starting")
 		docker, cilium = helpers.CreateNewRuntimeHelper("runtime", logger)
 		docker.NetworkCreate(networkName, "")
-		initilized = true
+		initialized = true
 	}
 
 	waitForCilium := func() {
@@ -37,7 +51,7 @@ var _ = Describe("RunChaosMonkey", func() {
 	}
 
 	BeforeEach(func() {
-		initilize()
+		initialize()
 		docker.ContainerCreate("client", netperfImage, networkName, "-l id.client")
 		docker.ContainerCreate("server", netperfImage, networkName, "-l id.server")
 
@@ -54,7 +68,7 @@ var _ = Describe("RunChaosMonkey", func() {
 		http://localhost/v1beta/healthz/ | jq ".ipam.ipv4|length"`)
 
 		res := cilium.Node.Exec("sudo systemctl restart cilium")
-		Expect(res.Correct()).Should(BeTrue())
+		Expect(res.WasSuccessful()).Should(BeTrue())
 
 		waitForCilium()
 
@@ -65,19 +79,19 @@ var _ = Describe("RunChaosMonkey", func() {
 
 	}, 300)
 
-	It("Interfaces chaos", func() {
+	It("removing leftover Cilium interfaces", func() {
 		originalLinks, err := docker.Node.Exec("sudo ip link show | wc -l").IntOutput()
 		Expect(err).Should(BeNil())
 
 		_ = docker.Node.Exec("sudo ip link add lxc12345 type veth peer name tmp54321")
 
 		res := cilium.Node.Exec("sudo systemctl restart cilium")
-		Expect(res.Correct()).Should(BeTrue())
+		Expect(res.WasSuccessful()).Should(BeTrue())
 
 		waitForCilium()
 
 		status := docker.Node.Exec("sudo ip link show lxc12345")
-		Expect(status.Correct()).Should(BeFalse(),
+		Expect(status.WasSuccessful()).Should(BeFalse(),
 			"leftover interface were not properly cleaned up")
 
 		links, err := docker.Node.Exec("sudo ip link show | wc -l").IntOutput()

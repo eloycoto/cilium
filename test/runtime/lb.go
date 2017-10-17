@@ -1,4 +1,18 @@
-package RunT
+// Copyright 2017 Authors of Cilium
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package RuntimeTest
 
 import (
 	"fmt"
@@ -12,24 +26,24 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var _ = Describe("RunLB", func() {
+var _ = Describe("RuntimeLB", func() {
 
-	var initilized bool
+	var initialized bool
 	var networkName string = "cilium-net"
 	var logger *log.Entry
 	var docker *helpers.Docker
 	var cilium *helpers.Cilium
 
-	initilize := func() {
-		if initilized == true {
+	initialize := func() {
+		if initialized == true {
 			return
 		}
-		logger = log.WithFields(log.Fields{"test": "RunLB"})
+		logger = log.WithFields(log.Fields{"test": "RuntimeLB"})
 		logger.Info("Starting")
 		docker, cilium = helpers.CreateNewRuntimeHelper("runtime", logger)
 		cilium.WaitUntilReady(100)
 		docker.NetworkCreate(networkName, "")
-		initilized = true
+		initialized = true
 	}
 
 	containers := func(mode string) {
@@ -53,7 +67,7 @@ var _ = Describe("RunLB", func() {
 	}
 
 	BeforeEach(func() {
-		initilize()
+		initialize()
 		cilium.Exec("service delete --all")
 	}, 500)
 
@@ -65,11 +79,11 @@ var _ = Describe("RunLB", func() {
 
 		By("Creating a valid service")
 		result := cilium.ServiceAdd(1, "[::]:80", []string{"[::1]:90", "[::2]:91"}, 2)
-		Expect(result.Correct()).Should(BeTrue(),
+		Expect(result.WasSuccessful()).Should(BeTrue(),
 			"Service can't be added in cilium")
 
 		result = cilium.ServiceGet(1)
-		Expect(result.Correct()).Should(BeTrue(),
+		Expect(result.WasSuccessful()).Should(BeTrue(),
 			"Service can't be retrieved correctly")
 		Expect(result.Output()).Should(ContainSubstring("[::1]:90"), fmt.Sprintf(
 			"No service backends added correctly '%s'", result.Output()))
@@ -78,57 +92,57 @@ var _ = Describe("RunLB", func() {
 		//FIXME: This need to be with Wait,Timeout
 		//Checking that bpf lb list is working correctly
 		result = cilium.Exec("bpf lb list")
-		Expect(result.Correct()).Should(BeTrue(),
+		Expect(result.WasSuccessful()).Should(BeTrue(),
 			"Service can't be retrieved correctly")
 		Expect(result.Output()).Should(ContainSubstring("[::1]:90"), fmt.Sprintf(
 			"No service backends added correctly '%s'", result.Output()))
 
 		By("Service ID 0")
 		result = cilium.ServiceAdd(0, "[::]:10000", []string{"[::1]:90", "[::2]:91"}, 2)
-		Expect(result.Correct()).Should(BeFalse(),
+		Expect(result.WasSuccessful()).Should(BeFalse(),
 			"Service with id 0 can be added in cilium")
 
 		By("Service ID -1")
 		result = cilium.ServiceAdd(-1, "[::]:10000", []string{"[::1]:90", "[::2]:91"}, 2)
-		Expect(result.Correct()).Should(BeFalse(),
+		Expect(result.WasSuccessful()).Should(BeFalse(),
 			"Service with id -1 can be added in cilium")
 
 		By("Duplicating serviceID")
 		result = cilium.ServiceAdd(1, "[::]:10000", []string{"[::1]:90", "[::2]:91"}, 2)
-		Expect(result.Correct()).Should(BeFalse(),
+		Expect(result.WasSuccessful()).Should(BeFalse(),
 			"Service with duplicated id can be added in cilium")
 
 		By("Duplicating service FE address")
 		//Trying to create a new service with id 10, that conflicts with the FE addr on id=1
 		result = cilium.ServiceAdd(10, "[::]:80", []string{"[::1]:90", "[::2]:91"}, 2)
-		Expect(result.Correct()).Should(BeFalse(),
+		Expect(result.WasSuccessful()).Should(BeFalse(),
 			"Service with duplicated FE can be added in cilium")
 
 		result = cilium.ServiceGet(10)
-		Expect(result.Correct()).Should(BeFalse(),
+		Expect(result.WasSuccessful()).Should(BeFalse(),
 			"Service was added and it shouldn't")
 
 		//Deleting service ID=1
 		result = cilium.ServiceDel(1)
-		Expect(result.Correct()).Should(BeTrue(),
+		Expect(result.WasSuccessful()).Should(BeTrue(),
 			"Service can't be deleted")
 
 		By("IPv4 testing")
 		result = cilium.ServiceAdd(1, "127.0.0.1:80", []string{"127.0.0.1:90", "127.0.0.1:91"}, 2)
-		Expect(result.Correct()).Should(BeTrue(),
+		Expect(result.WasSuccessful()).Should(BeTrue(),
 			"Service can't be added in cilium")
 
 		result = cilium.ServiceGet(1)
-		Expect(result.Correct()).Should(BeTrue(),
+		Expect(result.WasSuccessful()).Should(BeTrue(),
 			"Service can't be retrieved correctly")
 
 		By("Duplicating service FE address IPv4")
 		result = cilium.ServiceAdd(2, "127.0.0.1:80", []string{"127.0.0.1:90", "127.0.0.1:91"}, 2)
-		Expect(result.Correct()).Should(BeFalse(),
+		Expect(result.WasSuccessful()).Should(BeFalse(),
 			"Service can be added in cilium with duplicated FE")
 
 		result = cilium.ServiceGet(10)
-		Expect(result.Correct()).Should(BeFalse(),
+		Expect(result.WasSuccessful()).Should(BeFalse(),
 			"Service was added and it shouldn't")
 	}, 500)
 
@@ -160,19 +174,19 @@ var _ = Describe("RunLB", func() {
 
 		By("Cilium L3 service with Ipv4")
 		status := docker.ContainerExec("client", "ping -c 4 2.2.2.2")
-		Expect(status.Correct()).Should(BeTrue(), "L3 Proxy is not working IPv4")
+		Expect(status.WasSuccessful()).Should(BeTrue(), "L3 Proxy is not working IPv4")
 
 		By("Cilium L3 service with Ipv6")
 		status = docker.ContainerExec("client", "ping6 -c 4 f00d::1:1")
-		Expect(status.Correct()).Should(BeTrue(), "L3 Proxy is not working IPv6")
+		Expect(status.WasSuccessful()).Should(BeTrue(), "L3 Proxy is not working IPv6")
 
 		By("Cilium L3 service with Ipv4 Reverse")
 		status = docker.ContainerExec("client", "ping -c 4 3.3.3.3")
-		Expect(status.Correct()).Should(BeTrue(), "L3 Proxy is not working IPv6")
+		Expect(status.WasSuccessful()).Should(BeTrue(), "L3 Proxy is not working IPv6")
 
 		By("Cilium L3 service with Ipv6 Reverse")
 		status = docker.ContainerExec("client", "ping6 -c 4 f00d::1:2")
-		Expect(status.Correct()).Should(BeTrue(), "L3 Proxy is not working IPv6")
+		Expect(status.WasSuccessful()).Should(BeTrue(), "L3 Proxy is not working IPv6")
 	}, 500)
 
 	It("Service L4 tests", func() {
@@ -191,29 +205,29 @@ var _ = Describe("RunLB", func() {
 		status := cilium.ServiceAdd(1, "2.2.2.2:80", []string{
 			fmt.Sprintf("%s:80", httpd1["IPv4"]),
 			fmt.Sprintf("%s:80", httpd2["IPv4"])}, 2)
-		Expect(status.Correct()).Should(BeTrue(), "L4 service can't be created")
+		Expect(status.WasSuccessful()).Should(BeTrue(), "L4 service can't be created")
 
 		status = docker.ContainerExec(
 			"client",
 			"curl -s --fail --connect-timeout 4 http://2.2.2.2:80/public")
-		Expect(status.Correct()).Should(BeTrue(), "L3 Proxy is not working IPv4")
+		Expect(status.WasSuccessful()).Should(BeTrue(), "L3 Proxy is not working IPv4")
 
 		By("Valid IPV6 nat")
 		status = cilium.ServiceAdd(2, "[f00d::1:1]:80", []string{
 			fmt.Sprintf("[%s]:80", httpd1["IPv6"]),
 			fmt.Sprintf("[%s]:80", httpd2["IPv6"])}, 2)
-		Expect(status.Correct()).Should(BeTrue(), "L4 service can't be created")
+		Expect(status.WasSuccessful()).Should(BeTrue(), "L4 service can't be created")
 
 		status = docker.ContainerExec(
 			"client",
 			"curl -s --fail --connect-timeout 4 http://2.2.2.2:80/public")
-		Expect(status.Correct()).Should(BeTrue(), "L3 Proxy is not working IPv6")
+		Expect(status.WasSuccessful()).Should(BeTrue(), "L3 Proxy is not working IPv6")
 
 		By("L3 redirect to L4")
 		status = cilium.ServiceAdd(3, "2.2.2.2:0", []string{
 			fmt.Sprintf("%s:80", httpd1["IPv4"]),
 			fmt.Sprintf("%s:80", httpd2["IPv4"])}, 2)
-		Expect(status.Correct()).Should(BeFalse(),
+		Expect(status.WasSuccessful()).Should(BeFalse(),
 			"Service created with invalid data")
 	}, 500)
 })

@@ -1,4 +1,18 @@
-package k8sT
+// Copyright 2017 Authors of Cilium
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package k8sTest
 
 import (
 	"fmt"
@@ -12,19 +26,19 @@ import (
 var _ = Describe("K8sPolicyTest", func() {
 
 	var demoPath string
-	var initilized bool
+	var initialized bool
 	var kubectl *helpers.Kubectl
 	var l3Policy, l7Policy string
 	var logger *log.Entry
 	var path string
 	var podFilter string
 
-	initilize := func() {
-		if initilized == true {
+	initialize := func() {
+		if initialized == true {
 			return
 		}
 
-		logger = log.WithFields(log.Fields{"test": "K8sPolicyTest"})
+		logger = log.WithFields(log.Fields{"testName": "K8sPolicyTest"})
 		logger.Info("Starting")
 		kubectl = helpers.CreateKubectl("k8s1", logger)
 		podFilter = "k8s:zgroup=testapp"
@@ -39,20 +53,22 @@ var _ = Describe("K8sPolicyTest", func() {
 		status, err := kubectl.WaitforPods("kube-system", "-l k8s-app=cilium", 300)
 		Expect(status).Should(BeTrue())
 		Expect(err).Should(BeNil())
-		initilized = true
+		initialized = true
 	}
 
 	BeforeEach(func() {
-		initilize()
-		kubectl.CiliumPolicyDeleteAll("kube-system")
+		initialize()
+		// kubectl.CiliumPolicyDeleteAll("kube-system")
 		kubectl.Apply(demoPath)
 		_, err := kubectl.WaitforPods("default", "-l zgroup=testapp", 300)
 		Expect(err).Should(BeNil())
 	})
 
 	AfterEach(func() {
-		return
 		kubectl.Delete(demoPath)
+		// TO make sure that are not in place
+		kubectl.Delete(l3Policy)
+		kubectl.Delete(l7Policy)
 	})
 
 	It("PolicyEnforcement Changes", func() {
@@ -62,12 +78,12 @@ var _ = Describe("K8sPolicyTest", func() {
 		Expect(err).Should(BeNil())
 
 		status := kubectl.CiliumExec(ciliumPod, "cilium config PolicyEnforcement=default")
-		Expect(status.Correct()).Should(BeTrue())
+		Expect(status.WasSuccessful()).Should(BeTrue())
 		helpers.Sleep(5)
 		kubectl.CiliumEndpointWait(ciliumPod)
 
 		epsStatus := helpers.WithTimeout(func() bool {
-			endpoints, err := kubectl.CiliumEndpointsGetByTag(ciliumPod, podFilter)
+			endpoints, err := kubectl.CiliumEndpointsListByTag(ciliumPod, podFilter)
 			if err != nil {
 				return false
 			}
@@ -75,7 +91,7 @@ var _ = Describe("K8sPolicyTest", func() {
 		}, "Couldn't get endpoints", &helpers.TimeoutConfig{Timeout: 100})
 		Expect(epsStatus).Should(BeNil())
 
-		endpoints, err := kubectl.CiliumEndpointsGetByTag(ciliumPod, podFilter)
+		endpoints, err := kubectl.CiliumEndpointsListByTag(ciliumPod, podFilter)
 		Expect(err).Should(BeNil())
 		Expect(endpoints.AreReady()).Should(BeTrue())
 		policyStatus := endpoints.GetPolicyStatus()
@@ -85,10 +101,10 @@ var _ = Describe("K8sPolicyTest", func() {
 		By("Set PolicyEnforcement to always")
 
 		status = kubectl.CiliumExec(ciliumPod, "cilium config PolicyEnforcement=always")
-		Expect(status.Correct()).Should(BeTrue())
+		Expect(status.WasSuccessful()).Should(BeTrue())
 		kubectl.CiliumEndpointWait(ciliumPod)
 
-		endpoints, err = kubectl.CiliumEndpointsGetByTag(ciliumPod, podFilter)
+		endpoints, err = kubectl.CiliumEndpointsListByTag(ciliumPod, podFilter)
 		Expect(err).Should(BeNil())
 		Expect(endpoints.AreReady()).Should(BeTrue())
 		policyStatus = endpoints.GetPolicyStatus()
@@ -97,10 +113,10 @@ var _ = Describe("K8sPolicyTest", func() {
 
 		By("Return PolicyEnforcement to default")
 		status = kubectl.CiliumExec(ciliumPod, "cilium config PolicyEnforcement=default")
-		Expect(status.Correct()).Should(BeTrue())
+		Expect(status.WasSuccessful()).Should(BeTrue())
 		kubectl.CiliumEndpointWait(ciliumPod)
 
-		endpoints, err = kubectl.CiliumEndpointsGetByTag(ciliumPod, podFilter)
+		endpoints, err = kubectl.CiliumEndpointsListByTag(ciliumPod, podFilter)
 		Expect(err).Should(BeNil())
 		Expect(endpoints.AreReady()).Should(BeTrue())
 		policyStatus = endpoints.GetPolicyStatus()
@@ -112,7 +128,7 @@ var _ = Describe("K8sPolicyTest", func() {
 		appPods := make(map[string]string)
 		apps := []string{"app1", "app2", "app3"}
 		for _, v := range apps {
-			res, err := kubectl.GetPodsNames("default", fmt.Sprintf("id=%s", v))
+			res, err := kubectl.GetPodNames("default", fmt.Sprintf("id=%s", v))
 			Expect(err).Should(BeNil())
 			appPods[v] = res[0]
 			logger.Infof("PolicyRulesTest: pod='%s' assigned to '%s'", res[0], v)
@@ -126,7 +142,7 @@ var _ = Describe("K8sPolicyTest", func() {
 		Expect(err).Should(BeNil())
 
 		status := kubectl.CiliumExec(ciliumPod, "cilium config PolicyEnforcement=default")
-		Expect(status.Correct()).Should(BeTrue())
+		Expect(status.WasSuccessful()).Should(BeTrue())
 		kubectl.CiliumEndpointWait(ciliumPod)
 
 		By("Testing L3/L4 rules")
@@ -135,7 +151,7 @@ var _ = Describe("K8sPolicyTest", func() {
 		Expect(err).Should(BeNil())
 
 		epsStatus := helpers.WithTimeout(func() bool {
-			endpoints, err := kubectl.CiliumEndpointsGetByTag(ciliumPod, podFilter)
+			endpoints, err := kubectl.CiliumEndpointsListByTag(ciliumPod, podFilter)
 			if err != nil {
 				return false
 			}
@@ -144,7 +160,7 @@ var _ = Describe("K8sPolicyTest", func() {
 
 		Expect(epsStatus).Should(BeNil())
 
-		endpoints, err := kubectl.CiliumEndpointsGetByTag(ciliumPod, podFilter)
+		endpoints, err := kubectl.CiliumEndpointsListByTag(ciliumPod, podFilter)
 		policyStatus := endpoints.GetPolicyStatus()
 		Expect(policyStatus["enabled"]).Should(Equal(2))
 		Expect(policyStatus["disabled"]).Should(Equal(2))
@@ -157,13 +173,13 @@ var _ = Describe("K8sPolicyTest", func() {
 			"cilium policy trace --src-k8s-pod default:%s --dst-k8s-pod default:%s --dport 80",
 			appPods["app2"], appPods["app1"]))
 
-		Expect(trace.Correct()).Should(BeTrue())
+		Expect(trace.WasSuccessful()).Should(BeTrue())
 		Expect(trace.Output().String()).Should(ContainSubstring("Verdict: ALLOWED"))
 
 		trace = kubectl.CiliumExec(ciliumPod, fmt.Sprintf(
 			"cilium policy trace --src-k8s-pod default:%s --dst-k8s-pod default:%s",
 			appPods["app3"], appPods["app1"]))
-		Expect(trace.Correct()).Should(BeTrue())
+		Expect(trace.WasSuccessful()).Should(BeTrue())
 
 		Expect(trace.Output().String()).Should(ContainSubstring("Verdict: DENIED"))
 		_, err = kubectl.Exec(
@@ -171,7 +187,7 @@ var _ = Describe("K8sPolicyTest", func() {
 		Expect(err).Should(HaveOccurred())
 
 		status = kubectl.Delete(l3Policy)
-		Expect(status.Correct()).Should(BeTrue())
+		Expect(status.WasSuccessful()).Should(BeTrue())
 		kubectl.CiliumEndpointWait(ciliumPod)
 
 		By("Testing L7 Policy")
@@ -197,7 +213,7 @@ var _ = Describe("K8sPolicyTest", func() {
 		Expect(err).Should(HaveOccurred(), msg)
 
 		status = kubectl.Delete(l7Policy)
-		Expect(status.Correct()).Should(BeTrue())
+		Expect(status.WasSuccessful()).Should(BeTrue())
 		kubectl.CiliumEndpointWait(ciliumPod)
 
 		//After disable the policy, app3 can reach app1
@@ -206,4 +222,5 @@ var _ = Describe("K8sPolicyTest", func() {
 			"default", appPods["app3"], fmt.Sprintf("curl -s --fail http://%s/public", clusterIP))
 		Expect(err).Should(BeNil())
 	}, 500)
+
 })

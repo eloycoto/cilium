@@ -1,3 +1,17 @@
+// Copyright 2017 Authors of Cilium
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package helpers
 
 import (
@@ -13,7 +27,9 @@ import (
 //Vagrant helper struct
 type Vagrant struct{}
 
-//Create a new vagrant server
+//Create a new vagrant server. Receives and scope that it's the target server that need to be created.
+// If ssh is true, the ssh-config data will be append to the ssh-config.
+// In case of any error on vagrant [provision|up|ssh-config] error will be returned.
 func (vagrant *Vagrant) Create(scope string, ssh ...bool) error {
 	createCMD := "vagrant up %s --provision"
 	for _, v := range vagrant.Status(scope) {
@@ -24,7 +40,7 @@ func (vagrant *Vagrant) Create(scope string, ssh ...bool) error {
 	}
 	createCMD = fmt.Sprintf(createCMD, scope)
 	log.Infof("Vagrant:Create: running %s", createCMD)
-	cmd := vagrant.getCMD(createCMD)
+	cmd := vagrant.getCmd(createCMD)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -54,7 +70,7 @@ func (vagrant *Vagrant) Create(scope string, ssh ...bool) error {
 }
 
 func (vagrant *Vagrant) createConfig(scope string) error {
-	cmd := vagrant.getCMD(fmt.Sprintf("vagrant ssh-config %s >> ssh-config", scope))
+	cmd := vagrant.getCmd(fmt.Sprintf("vagrant ssh-config %s >> ssh-config", scope))
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		return err
@@ -64,7 +80,7 @@ func (vagrant *Vagrant) createConfig(scope string) error {
 
 func (vagrant *Vagrant) deleteConfig() error {
 
-	cmd := vagrant.getCMD("rm ssh-config")
+	cmd := vagrant.getCmd("rm ssh-config")
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		return err
@@ -72,22 +88,20 @@ func (vagrant *Vagrant) deleteConfig() error {
 	return nil
 }
 
-//Destroy all the vms
+//Destroy destroys all running Vagrant VMs in the provided scope. It returns an
+//error if deletion of either the VMs fails
 func (vagrant *Vagrant) Destroy(scope string) error {
-
-	cmd := vagrant.getCMD(fmt.Sprintf("vagrant destroy %s -f", scope))
+	command := fmt.Sprintf("vagrant destroy -f %s ", scope)
+	log.Infof("Vagrant:Destroy: running '%s'", command)
+	cmd := vagrant.getCmd(command)
 	_, err := cmd.CombinedOutput()
-	if err != nil {
-		return err
-	}
-	err = vagrant.deleteConfig()
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (vagrant *Vagrant) getCMD(op string) *exec.Cmd {
+func (vagrant *Vagrant) getCmd(op string) *exec.Cmd {
 	cmd := exec.Command(vagrant.getPath("bash"), "-c", op)
 	cmd.Dir = vagrant.getDir()
 	return cmd
@@ -113,7 +127,7 @@ func (vagrant *Vagrant) getPath(prog string) string {
 func (vagrant *Vagrant) Status(key string) map[string]string {
 	result := map[string]string{}
 
-	cmd := vagrant.getCMD(fmt.Sprintf("vagrant status %s --machine-readable", key))
+	cmd := vagrant.getCmd(fmt.Sprintf("vagrant status %s --machine-readable", key))
 	data, err := cmd.CombinedOutput()
 	if err != nil {
 		return result
