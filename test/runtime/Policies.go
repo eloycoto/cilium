@@ -19,9 +19,9 @@ import (
 	"os"
 
 	"github.com/cilium/cilium/test/helpers"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
 	"github.com/onsi/gomega/types"
 	log "github.com/sirupsen/logrus"
 )
@@ -427,7 +427,7 @@ var _ = Describe("RunPolicies", func() {
 	}
 
 	It("L3/L4 Checks", func() {
-		_, err := cilium.PolicyImport(cilium.GetFullPath("l3-policy.json"), 300)
+		_, err := cilium.PolicyImport(cilium.GetFullPath("Policies-l3-policy.json"), 300)
 		Expect(err).Should(BeNil())
 
 		//APP1 can connect to all Httpd1
@@ -518,7 +518,7 @@ var _ = Describe("RunPolicies", func() {
 
 	It("L7 Checks", func() {
 
-		_, err := cilium.PolicyImport(cilium.GetFullPath("l7-simple.json"), 300)
+		_, err := cilium.PolicyImport(cilium.GetFullPath("Policies-l7-simple.json"), 300)
 		Expect(err).Should(BeNil())
 
 		By("Simple Ingress")
@@ -546,7 +546,7 @@ var _ = Describe("RunPolicies", func() {
 		By("Multiple Ingress")
 
 		cilium.Exec("policy delete --all")
-		_, err = cilium.PolicyImport(cilium.GetFullPath("l7-multiple.json"), 300)
+		_, err = cilium.PolicyImport(cilium.GetFullPath("Policies-l7-multiple.json"), 300)
 		Expect(err).Should(BeNil())
 
 		//APP1 can connnect to public, but no to private

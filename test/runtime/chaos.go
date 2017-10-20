@@ -16,6 +16,7 @@ package RuntimeTest
 
 import (
 	"github.com/cilium/cilium/test/helpers"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	log "github.com/sirupsen/logrus"

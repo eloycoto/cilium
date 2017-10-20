@@ -41,17 +41,19 @@ func (res *CmdRes) WasSuccessful() bool {
 
 //CountLines return the number of stdout lines
 func (res *CmdRes) CountLines() int {
-	return len(strings.Split(res.stdout.String(), "\n"))
+	return strings.Count(res.stdout.String(), "\n")
 }
 
-//IntOutput returns the stdout of res as integer
+//CombineOutput returns the combined output of stdout and stderr
+func (res *CmdRes) CombineOutput() *bytes.Buffer {
+	result := res.stdout
+	result.WriteString(res.stderr.String())
+	return result
+}
+
+//IntOutput returns the stdout of res as an integer
 func (res *CmdRes) IntOutput() (int, error) {
 	return strconv.Atoi(strings.Trim(res.stdout.String(), "\n"))
-}
-
-//SingleOut returns the stdout of res without any newline characters
-func (res *CmdRes) SingleOut() string {
-	return strings.Trim(res.stdout.String(), "\n")
 }
 
 //FindResults filter CmdRes using jsonpath and returns an interface with the values
@@ -116,11 +118,15 @@ func (res *CmdRes) Output() *bytes.Buffer {
 	return res.stdout
 }
 
-//CombineOutput returns the combined output of stdout and stderr
-func (res *CmdRes) CombineOutput() *bytes.Buffer {
-	result := res.stdout
-	result.WriteString(res.stderr.String())
-	return result
+//Reset stdout bytes with an empty buffer
+func (res *CmdRes) Reset() {
+	res.stdout.Reset()
+	return
+}
+
+//SingleOut returns the stdout of res without any newline characters
+func (res *CmdRes) SingleOut() string {
+	return strings.Replace(res.stdout.String(), "\n", "", -1)
 }
 
 //UnMarshal unmarshals res's stdout into data

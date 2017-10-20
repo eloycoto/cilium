@@ -21,7 +21,9 @@ tests-common: force
 	tests/00-fmt.sh
 	# Make the bindata to run the unittest
 	make -C daemon go-bindata
-	docker-compose -f test/docker-compose.yml run --rm test
+	docker-compose -f test/docker-compose.yml -p $$JOB_BASE_NAME-$$BUILD_NUMBER run --rm test
+	# Remove the networks
+	docker-compose -f test/docker-compose.yml -p $$JOB_BASE_NAME-$$BUILD_NUMBER down
 	go vet $(GOFILES)
 
 tests-etcd:

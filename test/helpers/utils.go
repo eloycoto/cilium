@@ -21,7 +21,25 @@ import (
 	"io/ioutil"
 	"os"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
+
+//IsRunningOnJenkins detects if the current Ginkgo application is running in
+//Jenkins. Returns true if yes.
+func IsRunningOnJenkins() bool {
+	result := true
+
+	env := []string{"JENKINS_HOME", "NODE_NAME"}
+
+	for _, varName := range env {
+		if val := os.Getenv(varName); val == "" {
+			result = false
+			log.Infof("Variable '%s' is not present, it is not running on jenkins", varName)
+		}
+	}
+	return result
+}
 
 //Sleep sleeps for the specified duration in seconds
 func Sleep(delay time.Duration) {
@@ -41,7 +59,8 @@ func CountValues(key string, data []string) (int, int) {
 	return result, len(data)
 }
 
-//RenderTemplateToFile render a string using go templates to a file
+//RenderTemplateToFile renders a text/template string into a target filename with specific persmision.
+// It will return an error if the template can't be validated or can't write the file
 func RenderTemplateToFile(filename string, tmplt string, perm os.FileMode) error {
 	t, err := template.New("").Parse(tmplt)
 	if err != nil {

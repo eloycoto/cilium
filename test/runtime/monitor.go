@@ -19,9 +19,9 @@ import (
 	"fmt"
 
 	"github.com/cilium/cilium/test/helpers"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
 	log "github.com/sirupsen/logrus"
 )
 
@@ -29,6 +29,7 @@ var _ = Describe("RuntimeMonitorTest", func() {
 
 	var initialized bool
 	var networkName string = "cilium-net"
+	var netperfImage string = "tgraf/netperf"
 	var logger *log.Entry
 	var docker *helpers.Docker
 	var cilium *helpers.Cilium
@@ -181,23 +182,32 @@ var _ = Describe("RuntimeMonitorTest", func() {
 		Expect(res.WasSuccessful()).Should(BeTrue())
 
 		var monitorRes []*helpers.CmdRes
-		var cancel []context.CancelFunc
+
+		ctx, cancelfn := context.WithCancel(context.Background())
 
 		for i := 1; i <= 3; i++ {
-			ctx, cancelfn := context.WithCancel(context.Background())
 			monitorRes = append(monitorRes, docker.Node.ExecContext(ctx, "sudo cilium monitor"))
-			cancel = append(cancel, cancelfn)
 		}
-		docker.SampleContainersActions("create", networkName)
-		docker.ContainerExec("app1", "ping -c 5 httpd1")
+
+		//Reset stdout to avoid issues with the running containers
+		for _, v := range monitorRes {
+			v.Reset()
+		}
+
+		docker.ContainerCreate("client", netperfImage, networkName, "-l id.client")
+		docker.ContainerCreate("server", netperfImage, networkName, "-l id.server")
+		docker.ContainerExec("client", "ping -c 5 server")
 		helpers.Sleep(5)
-		for _, cancelfn := range cancel {
-			cancelfn()
+		cancelfn()
+
+		for k, v := range monitorRes {
+			fmt.Printf("Monitor %d \n %s", k, v.Output().String())
 		}
+
 		Expect(monitorRes[0].Output().String()).Should(Equal(monitorRes[1].Output().String()))
 		Expect(monitorRes[0].Output().String()).Should(Equal(monitorRes[2].Output().String()))
-		// Expect(monitorRes[0].Output()).Should(Equal(monitorRes[2].Output()))
 
+		Expect(monitorRes[0].CountLines()).Should(BeNumerically(">", 2))
 		Expect(monitorRes[0].CountLines()).Should(Equal(monitorRes[1].CountLines()))
 		Expect(monitorRes[0].CountLines()).Should(Equal(monitorRes[2].CountLines()))
 	})

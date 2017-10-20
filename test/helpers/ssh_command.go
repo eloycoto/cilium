@@ -15,6 +15,7 @@
 package helpers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -24,14 +25,10 @@ import (
 	"strconv"
 
 	"github.com/kevinburke/ssh_config"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
-
-	log "github.com/sirupsen/logrus"
 )
-
-//SSHConfigPath ssh-config temp path for the different scopes
-var SSHConfigPath = "ssh-config"
 
 //SSHCommand struct to send commands over SSHClient
 type SSHCommand struct {
@@ -42,12 +39,13 @@ type SSHCommand struct {
 	Stderr io.Writer
 }
 
-//SSHClient configuration
+//SSHClient struct to store the configuration for a specific vagrant box
 type SSHClient struct {
-	Config *ssh.ClientConfig
-	Host   string
-	Port   int
-	client *ssh.Client
+	Config *ssh.ClientConfig // ssh client configuration information.
+	Host   string            // Ip/Host from the target virtualserver
+	Port   int               // Port to connect to the target server
+	client *ssh.Client       // Client implements a traditional SSH client that supports shells,
+	// subprocesses, TCP port/streamlocal forwarding and tunneled dialing.
 }
 
 //SSHConfig contains metadata for running an SSH session .
@@ -59,7 +57,7 @@ type SSHConfig struct {
 	identityFile string
 }
 
-//SSHConfigs map with all sshconfig
+//SSHConfigs map with all sshconfig. Key represent the virtualserver target name
 type SSHConfigs map[string]*SSHConfig
 
 //GetSSHClient initializes an SSHClient based on the provided SSHConfig
@@ -96,13 +94,9 @@ func (cfg *SSHConfig) GetSSHAgent() ssh.AuthMethod {
 
 //ImportSSHconfig imports the SSH configuration stored at the provided path.
 //Returns an error if the SSH configuration could not be instantiated.
-func ImportSSHconfig(path string) (SSHConfigs, error) {
+func ImportSSHconfig(config []byte) (SSHConfigs, error) {
 	result := make(SSHConfigs)
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	cfg, err := ssh_config.Decode(f)
+	cfg, err := ssh_config.Decode(bytes.NewBuffer(config))
 	if err != nil {
 		return nil, err
 	}

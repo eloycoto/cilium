@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/cilium/cilium/api/v1/models"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -66,7 +67,7 @@ func (c *Cilium) EndpointGet(id string) *models.Endpoint {
 	var data []models.Endpoint
 	err := c.Exec(fmt.Sprintf("endpoint get %s", id)).UnMarshal(&data)
 	if err != nil {
-		c.logCxt.Infof("EndpointGet fail %d: %s", id, err)
+		c.logCxt.Errorf("EndpointGet fail %d: %s", id, err)
 		return nil
 	}
 	if len(data) > 0 {
@@ -94,7 +95,7 @@ func (c *Cilium) EndpointSetConfig(id, option, value string) bool {
 	}
 	data := c.Exec(fmt.Sprintf("endpoint config %s %s=%s", id, option, value))
 	if !data.WasSuccessful() {
-		logger.Infof("Can't set endoint config %s=%s", option, value)
+		logger.Errorf("Can't set endoint config %s=%s", option, value)
 		return false
 	}
 	err := WithTimeout(func() bool {
@@ -106,7 +107,7 @@ func (c *Cilium) EndpointSetConfig(id, option, value string) bool {
 		return false
 	}, "Endpoint is not regenerated", &TimeoutConfig{Timeout: 100})
 	if err != nil {
-		logger.Infof("Endpoint set failed:%s", err)
+		logger.Errorf("Endpoint set failed:%s", err)
 		return false
 	}
 	return true
@@ -303,7 +304,7 @@ func (c *Cilium) PolicyWait(revisionNum int) *CmdRes {
 	return c.Exec(fmt.Sprintf("policy wait %d", revisionNum))
 }
 
-//ReportFailed Write to log output the needed data to debug an error
+//ReportFailed gathers relevant Cilium runtime data and logs for debugging purposes
 func (c *Cilium) ReportFailed() {
 	wr := c.logCxt.Logger.Out
 	fmt.Fprint(wr, "StackTrace Begin\n")

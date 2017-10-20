@@ -3,6 +3,7 @@ services:
   consul:
     image: "consul:0.8.3"
     hostname: "consul"
+    privileged: true
     # ports:
     #   - "8500:8500"
     environment:

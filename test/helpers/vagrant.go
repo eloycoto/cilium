@@ -28,14 +28,19 @@ import (
 type Vagrant struct{}
 
 //Create a new vagrant server. Receives and scope that it's the target server that need to be created.
-// If ssh is true, the ssh-config data will be append to the ssh-config.
 // In case of any error on vagrant [provision|up|ssh-config] error will be returned.
-func (vagrant *Vagrant) Create(scope string, ssh ...bool) error {
+func (vagrant *Vagrant) Create(scope string) error {
 	createCMD := "vagrant up %s --provision"
 	for _, v := range vagrant.Status(scope) {
 		switch v {
 		case "running":
-			createCMD = "vagrant provision %s"
+			//Sometimes Jenkins is not deleting the servers. So we need to make
+			//sure that we destroy before starts
+			if !IsRunningOnJenkins() {
+				createCMD = "vagrant provision %s"
+			} else {
+				vagrant.Destroy(scope)
+			}
 		case "not_created":
 			createCMD = "vagrant up %s --provision"
 		default:
@@ -52,7 +57,10 @@ func (vagrant *Vagrant) Create(scope string, ssh ...bool) error {
 	}
 
 	if err := cmd.Start(); err != nil {
-		log.Errorf("Create error on start command='%s' error=%s", createCMD, err)
+		log.WithFields(log.Fields{
+			"command": createCMD,
+			"err":     err,
+		}).Fatalf("Create error on start")
 		return err
 	}
 
@@ -65,32 +73,18 @@ func (vagrant *Vagrant) Create(scope string, ssh ...bool) error {
 		return err
 	}
 
-	if len(ssh) > 0 && ssh[0] == true {
-		err = vagrant.createConfig(scope)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
-func (vagrant *Vagrant) createConfig(scope string) error {
-	cmd := vagrant.getCmd(fmt.Sprintf("vagrant ssh-config %s >> ssh-config", scope))
-	_, err := cmd.CombinedOutput()
+//GetSSHConfig returns an string with the ssh-cofnig for a target vm. REturn
+//error if fails to run `vagrant ssh-config`
+func (vagrant *Vagrant) GetSSHConfig(scope string) ([]byte, error) {
+	cmd := vagrant.getCmd(fmt.Sprintf("vagrant ssh-config %s", scope))
+	result, err := cmd.Output()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
-}
-
-func (vagrant *Vagrant) deleteConfig() error {
-
-	cmd := vagrant.getCmd("rm ssh-config")
-	_, err := cmd.CombinedOutput()
-	if err != nil {
-		return err
-	}
-	return nil
+	return result, nil
 }
 
 //Destroy destroys all running Vagrant VMs in the provided scope. It returns an

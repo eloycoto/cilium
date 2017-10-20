@@ -41,11 +41,15 @@ func CreateNode(host string, port int, user string) *Node {
 
 //CreateNodeFromTarget returns a Node initialized based on the provided SSH-config target
 func CreateNodeFromTarget(target string) *Node {
-	nodes, err := ImportSSHconfig(SSHConfigPath)
+	var vagrant Vagrant
+	config, err := vagrant.GetSSHConfig(target)
 	if err != nil {
 		return nil
 	}
-
+	nodes, err := ImportSSHconfig(config)
+	if err != nil {
+		return nil
+	}
 	node := nodes[target]
 	if node == nil {
 		return nil

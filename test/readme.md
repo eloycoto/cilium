@@ -26,6 +26,18 @@ each spec, a new ssh connection will be open to the virtual server. Mainly this
 connections are wrapped in some helpers, and a Node attribute is exported in
 case that we need to run a specific command on a node.
 
+
+## Requirements
+
+Before run any test, you should have the following tools installed.
+
+- Virtualbox
+- Vagrant
+- Docker
+- Docker-compose
+- Ginkgo `go get github.com/onsi/ginkgo/ginkgo`
+- Gomega `go get github.com/onsi/gomega`
+
 ## Runtime Test:
 
 Runtime test is where all features are tested. It is provisioned based on a
@@ -37,7 +49,7 @@ if the focus flag start with  "Run" the system will create runtime vagrant
 box. You can see the status of the box using the following command:
 
 ```
-vagrant status runtime
+cd test; vagrant status runtime
 ````
 
 To run the test, you need to execute the following command:

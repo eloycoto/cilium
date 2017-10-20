@@ -166,10 +166,11 @@ func (kub *Kubectl) WaitforPods(namespace string, filter string, timeout time.Du
 		if valid == true {
 			return true
 		}
-
-		kub.logCxt.Infof(
-			"WaitForPods on namespace '%s' with filter '%s' is not ready data='%s'",
-			namespace, filter, data)
+		kub.logCxt.WithFields(log.Fields{
+			"namespace": namespace,
+			"filter":    filter,
+			"data":      data,
+		}).Info("WaitforPods: pods are not ready")
 		return false
 	}
 	err := WithTimeout(body, "Could not get Pods", &TimeoutConfig{Timeout: timeout})
@@ -247,10 +248,11 @@ func (kub *Kubectl) CiliumEndpointWait(pod string) bool {
 		if invalid == 0 {
 			return true
 		}
-
-		kub.logCxt.Infof(
-			"waiting for cilium endpoints pod='%s' valid='%d' invalid='%d'",
-			pod, valid, invalid)
+		kub.logCxt.WithFields(log.Fields{
+			"pod":     pod,
+			"valid":   valid,
+			"invalid": invalid,
+		}).Info("Waiting for cilium endpoints")
 		return false
 	}
 

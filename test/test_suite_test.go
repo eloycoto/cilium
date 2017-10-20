@@ -59,20 +59,25 @@ var _ = BeforeSuite(func() {
 	scope := ginkgoext.GetScope()
 	switch scope {
 	case "runtime":
-		vagrant.Create("runtime", true)
+		vagrant.Create("runtime")
 	case "k8s":
 		//FIXME: This should be:
 		// Start k8s1 and provision kubernetes.
 		// When finish, start to build cilium in background
 		// Start k8s2
 		// Wait until compilation finished, and pull cilium image on k8s2
-		vagrant.Create(fmt.Sprintf("k8s1-%s", helpers.GetCurrentK8SEnv()), true)
-		vagrant.Create(fmt.Sprintf("k8s2-%s", helpers.GetCurrentK8SEnv()), false)
+		vagrant.Create(fmt.Sprintf("k8s1-%s", helpers.GetCurrentK8SEnv()))
+		vagrant.Create(fmt.Sprintf("k8s2-%s", helpers.GetCurrentK8SEnv()))
 	}
 	return
 })
 
 var _ = AfterSuite(func() {
+	if !helpers.IsRunningOnJenkins() {
+		log.Infof("AfterSuite: is dev env, keep templates as it is")
+		return
+	}
+
 	scope := ginkgoext.GetScope()
 	log.Infof("Running After Suite flag for scope='%s'", scope)
 	switch scope {
