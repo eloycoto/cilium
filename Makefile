@@ -18,9 +18,10 @@ $(SUBDIRS): force
 tests: tests-common
 
 tests-common: force
-	# tests/00-fmt.sh
-	cd daemon && make go-bindata
-	docker-compose -f test/docker-compose.yml run test
+	tests/00-fmt.sh
+	# Make the bindata to run the unittest
+	make -C daemon go-bindata
+	docker-compose -f test/docker-compose.yml run --rm test
 	go vet $(GOFILES)
 
 tests-etcd:

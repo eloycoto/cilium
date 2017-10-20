@@ -66,7 +66,7 @@ func (c *Cilium) EndpointGet(id string) *models.Endpoint {
 	var data []models.Endpoint
 	err := c.Exec(fmt.Sprintf("endpoint get %s", id)).UnMarshal(&data)
 	if err != nil {
-		c.logCxt.Infof("EndpointsGet fail %d: %s", id, err)
+		c.logCxt.Infof("EndpointGet fail %d: %s", id, err)
 		return nil
 	}
 	if len(data) > 0 {

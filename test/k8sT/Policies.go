@@ -191,7 +191,7 @@ var _ = Describe("K8sPolicyTest", func() {
 				return false
 			}
 			return endpoints.AreReady()
-		}, "Couldn't get endpoints", &helpers.TimeoutConfig{Timeout: 100})
+		}, "Could not get endpoints", &helpers.TimeoutConfig{Timeout: 100})
 
 		Expect(epsStatus).Should(BeNil())
 		appPods = getAppPods()

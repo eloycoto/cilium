@@ -21,8 +21,12 @@ pipeline {
         }
         stage('UnitTesting') {
             agent any
+            environment {
+                GOPATH="${WORKSPACE}"
+                TESTDIR="${WORKSPACE}/${PROJ_PATH}/"
+            }
             steps {
-                sh "make tests"
+                sh "cd ${TESTDIR}; make tests"
             }
         }
         stage('BDD-Test') {
