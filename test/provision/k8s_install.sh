@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -e
 HOST=$(hostname)
 TOKEN="258062.5d84c017c9b2796c"
 CILIUM_CONFIG_DIR="/opt/cilium"

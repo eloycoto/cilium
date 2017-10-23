@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -e
 export GOPATH="/go/"
 
 mkdir -p $GOPATH/src/github.com/cilium/

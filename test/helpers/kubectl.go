@@ -25,7 +25,15 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/cilium/cilium/api/v1/models"
-	"github.com/cilium/cilium/pkg/k8s"
+)
+
+const (
+	// Annotationv4CIDRName is the annotation name used to store the IPv4
+	// pod CIDR in the node's annotations. From pkg/k8s
+	Annotationv4CIDRName = "io.cilium.network.ipv4-pod-cidr"
+	// Annotationv6CIDRName is the annotation name used to store the IPv6
+	// pod CIDR in the node's annotations. From pkg/k8s
+	Annotationv6CIDRName = "io.cilium.network.ipv6-pod-cidr"
 )
 
 //GetCurrentK8SEnv returns the value of K8S_VERSION from the OS environment
@@ -129,8 +137,8 @@ func (kub *Kubectl) ManifestsPath() string {
 //NodeCleanMetadata delete all cilium metadata info to all nodes
 func (kub *Kubectl) NodeCleanMetadata() error {
 	metadata := []string{
-		k8s.Annotationv4CIDRName,
-		k8s.Annotationv6CIDRName,
+		Annotationv4CIDRName,
+		Annotationv6CIDRName,
 	}
 
 	data := kub.Node.Exec("kubectl get nodes -o jsonpath='{.items[*].metadata.name}'")

@@ -59,15 +59,31 @@ var _ = BeforeSuite(func() {
 	scope := ginkgoext.GetScope()
 	switch scope {
 	case "runtime":
-		vagrant.Create("runtime")
+		err := vagrant.Create("runtime")
+		if err != nil {
+			Fail(fmt.Sprintf("Vagrant could not started correctly: %s", err))
+		}
+		cilium := helpers.CreateCilium("runtime", log.WithFields(
+			log.Fields{"testName": "BeforeSuite"}))
+		err = cilium.SetUp()
+		if err != nil {
+			Fail(fmt.Sprintf("Vagrant could not setup cilium correctly: %s", err))
+		}
+
 	case "k8s":
 		//FIXME: This should be:
 		// Start k8s1 and provision kubernetes.
 		// When finish, start to build cilium in background
 		// Start k8s2
 		// Wait until compilation finished, and pull cilium image on k8s2
-		vagrant.Create(fmt.Sprintf("k8s1-%s", helpers.GetCurrentK8SEnv()))
-		vagrant.Create(fmt.Sprintf("k8s2-%s", helpers.GetCurrentK8SEnv()))
+		err := vagrant.Create(fmt.Sprintf("k8s1-%s", helpers.GetCurrentK8SEnv()))
+		if err != nil {
+			Fail(fmt.Sprintf("Vagrant k8s1 could not started correctly: %s", err))
+		}
+		err = vagrant.Create(fmt.Sprintf("k8s2-%s", helpers.GetCurrentK8SEnv()))
+		if err != nil {
+			Fail(fmt.Sprintf("Vagrant k8s2 could not started correctly: %s", err))
+		}
 	}
 	return
 })

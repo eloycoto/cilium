@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 HOST=$(hostname)
 export GOPATH=/go/

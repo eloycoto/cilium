@@ -17,12 +17,17 @@ package helpers
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/cilium/cilium/api/v1/models"
 
 	log "github.com/sirupsen/logrus"
+)
+
+const (
+	MaxRetries = 30
 )
 
 //Cilium struct helper. Struct that has a Node and logCxt with all relevant
@@ -113,6 +118,8 @@ func (c *Cilium) EndpointSetConfig(id, option, value string) bool {
 	return true
 }
 
+var EndpointWaitUntilReadyRetry int = 0 //List how many retries EndpointWaitUntilReady should have
+
 //EndpointWaitUntilReady This function wait until all the endpoints are in the ready status
 func (c *Cilium) EndpointWaitUntilReady(validation ...bool) bool {
 
@@ -130,10 +137,15 @@ func (c *Cilium) EndpointWaitUntilReady(validation ...bool) bool {
 
 	if err := c.GetEndpoints().UnMarshal(&data); err != nil {
 		logger.Info("Can't get endpoints: %s", err)
-		//TODO: infinite loop here
+		if EndpointWaitUntilReadyRetry > MaxRetries {
+			logger.Errorf("Can not get endpoints, die :%s", err)
+			return false
+		}
+		EndpointWaitUntilReadyRetry++
 		Sleep(5)
 		return c.EndpointWaitUntilReady(validation...)
 	}
+	EndpointWaitUntilReadyRetry = 0 //Reset to 0
 	epsStatus := getEpsStatus(data)
 
 	body := func() bool {
@@ -335,6 +347,30 @@ func (c *Cilium) ServiceGet(id int) *CmdRes {
 //ServiceDel delete the service ID
 func (c *Cilium) ServiceDel(id int) *CmdRes {
 	return c.Exec(fmt.Sprintf("service delete '%d'", id))
+}
+
+//SetUp setup cilium config
+func (c *Cilium) SetUp() error {
+	template := `
+PATH=/usr/lib/llvm-3.8/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/bin
+CILIUM_OPTS=--kvstore consul --kvstore-opt consul.address=127.0.0.1:8500 --debug
+INITSYSTEM=SYSTEMD`
+
+	err := RenderTemplateToFile("cilium", template, 0777)
+	if err != nil {
+		return err
+	}
+	defer os.Remove("ingress.json")
+
+	res := c.Node.Exec("sudo cp /vagrant/cilium /etc/sysconfig/cilium")
+	if !res.WasSuccessful() {
+		return fmt.Errorf("%s", res.CombineOutput())
+	}
+	res = c.Node.Exec("sudo systemctl restart cilium")
+	if !res.WasSuccessful() {
+		return fmt.Errorf("%s", res.CombineOutput())
+	}
+	return nil
 }
 
 //WaitUntilReady waits until the output of cilium status returns with code

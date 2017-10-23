@@ -31,10 +31,10 @@ case that we need to run a specific command on a node.
 
 Before run any test, you should have the following tools installed.
 
-- Virtualbox
-- Vagrant
-- Docker
-- Docker-compose
+- Virtualbox 5.1
+- Vagrant 2.0
+- Docker >=1.13
+- Docker-compose >=1.16
 - Ginkgo `go get github.com/onsi/ginkgo/ginkgo`
 - Gomega `go get github.com/onsi/gomega`
 

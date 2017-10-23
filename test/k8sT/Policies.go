@@ -88,11 +88,7 @@ var _ = Describe("K8sPolicyTest", func() {
 					updated++
 				}
 			}
-			if updated >= min {
-				return true
-			}
-
-			return false
+			return updated >= min
 		}
 		err := helpers.WithTimeout(body, "No new version applied", &helpers.TimeoutConfig{Timeout: 100})
 		return err
