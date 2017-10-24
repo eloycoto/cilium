@@ -49,12 +49,18 @@ func (vagrant *Vagrant) Create(scope string) error {
 		}
 	}
 	createCMD = fmt.Sprintf(createCMD, scope)
-	log.Infof("Vagrant:Create: running %s", createCMD)
+	log.Infof("Vagrant:Create: running '%s'", createCMD)
 	cmd := vagrant.getCmd(createCMD)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
 	}
+	go func() {
+		in := bufio.NewScanner(stdout)
+		for in.Scan() {
+			log.Infof(in.Text()) // write each line to your log
+		}
+	}()
 
 	if err := cmd.Start(); err != nil {
 		log.WithFields(log.Fields{
@@ -62,11 +68,6 @@ func (vagrant *Vagrant) Create(scope string) error {
 			"err":     err,
 		}).Fatalf("Create error on start")
 		return err
-	}
-
-	in := bufio.NewScanner(stdout)
-	for in.Scan() {
-		log.Infof(in.Text()) // write each line to your log
 	}
 
 	if err := cmd.Wait(); err != nil {

@@ -95,6 +95,11 @@ func (res *CmdRes) Filter(filter string) (*bytes.Buffer, error) {
 	return result, nil
 }
 
+//ByLines return an array with all stdout lines
+func (res *CmdRes) ByLines() []string {
+	return strings.Split(res.stdout.String(), "\n")
+}
+
 // KVOutput returns a map of the stdout of the provided CmdRes split based on
 // the separator '='.
 // This is going to be used when the output will be like this:
@@ -104,7 +109,7 @@ func (res *CmdRes) Filter(filter string) (*bytes.Buffer, error) {
 // This funtion will return a map with the values in the stdout output
 func (res *CmdRes) KVOutput() map[string]string {
 	result := make(map[string]string)
-	for _, line := range strings.Split(res.stdout.String(), "\n") {
+	for _, line := range res.ByLines() {
 		vals := strings.Split(line, "=")
 		if len(vals) == 2 {
 			result[vals[0]] = vals[1]

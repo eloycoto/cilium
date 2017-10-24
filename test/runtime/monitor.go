@@ -17,6 +17,7 @@ package RuntimeTest
 import (
 	"context"
 	"fmt"
+	"math/rand"
 
 	"github.com/cilium/cilium/test/helpers"
 
@@ -137,12 +138,13 @@ var _ = Describe("RuntimeMonitorTest", func() {
 		docker.SampleContainersActions("create", networkName)
 		endpoints, err := cilium.GetEndpointsIds()
 		Expect(err).Should(BeNil())
-
+		cilium.EndpointWaitUntilReady()
 		ctx, cancel := context.WithCancel(context.Background())
 		res = docker.Node.ExecContext(ctx, fmt.Sprintf(
 			"sudo cilium monitor --type drop -v --to %s", endpoints["httpd1"]))
 
 		docker.ContainerExec("app1", "ping -c 5 httpd1")
+		docker.ContainerExec("app2", "ping -c 5 httpd1")
 		helpers.Sleep(5)
 		cancel()
 
@@ -183,32 +185,31 @@ var _ = Describe("RuntimeMonitorTest", func() {
 
 		var monitorRes []*helpers.CmdRes
 
+		docker.ContainerCreate("client", netperfImage, networkName, "-l id.client")
+		docker.ContainerCreate("server", netperfImage, networkName, "-l id.server")
+
+		defer docker.ContainerRm("client")
+		defer docker.ContainerRm("server")
+
 		ctx, cancelfn := context.WithCancel(context.Background())
 
 		for i := 1; i <= 3; i++ {
 			monitorRes = append(monitorRes, docker.Node.ExecContext(ctx, "sudo cilium monitor"))
 		}
 
-		//Reset stdout to avoid issues with the running containers
-		for _, v := range monitorRes {
-			v.Reset()
-		}
-
-		docker.ContainerCreate("client", netperfImage, networkName, "-l id.client")
-		docker.ContainerCreate("server", netperfImage, networkName, "-l id.server")
 		docker.ContainerExec("client", "ping -c 5 server")
-		helpers.Sleep(5)
 		cancelfn()
 
-		for k, v := range monitorRes {
-			fmt.Printf("Monitor %d \n %s", k, v.Output().String())
-		}
-
-		Expect(monitorRes[0].Output().String()).Should(Equal(monitorRes[1].Output().String()))
-		Expect(monitorRes[0].Output().String()).Should(Equal(monitorRes[2].Output().String()))
-
 		Expect(monitorRes[0].CountLines()).Should(BeNumerically(">", 2))
-		Expect(monitorRes[0].CountLines()).Should(Equal(monitorRes[1].CountLines()))
-		Expect(monitorRes[0].CountLines()).Should(Equal(monitorRes[2].CountLines()))
+
+		//Due to the ssh connection, sometimes the result has one line more in
+		//any output. So we check at least 5 lines are in the all outputs.
+		for i := 0; i < 5; i++ {
+			//ln: return a random number in the array len upper than 5 (First 5 lines)
+			ln := rand.Intn((len(monitorRes[0].ByLines())-1)-5) + 5
+			str := monitorRes[0].ByLines()[ln]
+			Expect(monitorRes[1].Output().String()).Should(ContainSubstring(str))
+			Expect(monitorRes[2].Output().String()).Should(ContainSubstring(str))
+		}
 	})
 })

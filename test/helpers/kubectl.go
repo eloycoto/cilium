@@ -66,7 +66,6 @@ func (kub *Kubectl) Exec(namespace string, pod string, cmd string) (string, erro
 	command := fmt.Sprintf("kubectl exec -n %s %s -- %s", namespace, pod, cmd)
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
-
 	exit := kub.Node.Execute(command, stdout, stderr)
 	if exit == false {
 		// TODO: Return CmdRes here

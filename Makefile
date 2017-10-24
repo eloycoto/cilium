@@ -15,15 +15,21 @@ build: $(SUBDIRS)
 $(SUBDIRS): force
 	@ $(MAKE) -C $@ all
 
-tests: tests-common
+tests: tests-common tests-consul
 
-tests-common: force
+tests-ginkgo: tests-common-ginkgo
+
+tests-common-ginkgo: force
 	tests/00-fmt.sh
 	# Make the bindata to run the unittest
 	make -C daemon go-bindata
 	docker-compose -f test/docker-compose.yml -p $$JOB_BASE_NAME-$$BUILD_NUMBER run --rm test
 	# Remove the networks
 	docker-compose -f test/docker-compose.yml -p $$JOB_BASE_NAME-$$BUILD_NUMBER down
+	go vet $(GOFILES)
+
+tests-common: force
+	tests/00-fmt.sh
 	go vet $(GOFILES)
 
 tests-etcd:
@@ -50,7 +56,7 @@ tests-etcd:
 	@rmdir ./daemon/1 ./daemon/1_backup 2> /dev/null || true
 	docker rm -f "cilium-etcd-test-container"
 
-tests-consul:
+tests-consul-ginkgo:
 	echo "mode: count" > coverage-all.out
 	echo "mode: count" > coverage.out
 	$(foreach pkg,$(GOFILES),\
@@ -63,9 +69,31 @@ tests-consul:
 	rm coverage.out
 	@rmdir ./daemon/1 ./daemon/1_backup 2> /dev/null || true
 
+
+tests-consul:
+	@docker rm -f "cilium-consul-test-container" 2> /dev/null || true
+	-docker run -d \
+           --name "cilium-consul-test-container" \
+           -p 8501:8500 \
+           -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true}' \
+           consul:0.8.3 \
+           agent -client=0.0.0.0 -server -bootstrap-expect 1
+	echo "mode: count" > coverage-all.out
+	echo "mode: count" > coverage.out
+	$(foreach pkg,$(GOFILES),\
+	go test \
+            -ldflags "-X "github.com/cilium/cilium/pkg/kvstore".backend=consul" \
+            -timeout 30s -coverprofile=coverage.out -covermode=count $(pkg) $(GOTEST_OPTS) || exit 1;\
+            tail -n +2 coverage.out >> coverage-all.out;)
+	go tool cover -html=coverage-all.out -o=coverage-all.html
+	rm coverage-all.out
+	rm coverage.out
+	@rmdir ./daemon/1 ./daemon/1_backup 2> /dev/null || true
+	docker rm -f "cilium-consul-test-container"
+
 clean-tags:
 	-$(MAKE) -C bpf/ clean-tags
-	rm cscope.out cscope.in.out cscope.po.out cscope.files tags
+	-rm -f cscope.out cscope.in.out cscope.po.out cscope.files tags
 
 tags: $(GOLANG_SRCFILES) $(BPF_SRCFILES)
 	@$(MAKE) -C bpf/ tags

@@ -317,7 +317,7 @@ func (c *Cilium) PolicyWait(revisionNum int) *CmdRes {
 }
 
 //ReportFailed gathers relevant Cilium runtime data and logs for debugging purposes
-func (c *Cilium) ReportFailed() {
+func (c *Cilium) ReportFailed(commands ...string) {
 	wr := c.logCxt.Logger.Out
 	fmt.Fprint(wr, "StackTrace Begin\n")
 
@@ -328,6 +328,11 @@ func (c *Cilium) ReportFailed() {
 	res = c.Node.Exec("sudo cilium endpoint list")
 	fmt.Fprint(wr, res.Output())
 
+	for _, cmd := range commands {
+		fmt.Fprintf(wr, "Command '%s': \n", cmd)
+		res = c.Node.Exec(fmt.Sprintf("%s", cmd))
+		fmt.Fprint(wr, res.Output())
+	}
 	fmt.Fprint(wr, "StackTrace Ends\n")
 }
 
@@ -360,7 +365,7 @@ INITSYSTEM=SYSTEMD`
 	if err != nil {
 		return err
 	}
-	defer os.Remove("ingress.json")
+	defer os.Remove("cilium")
 
 	res := c.Node.Exec("sudo cp /vagrant/cilium /etc/sysconfig/cilium")
 	if !res.WasSuccessful() {

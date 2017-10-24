@@ -60,6 +60,11 @@ var _ = Describe("RuntimeKVStoreTest", func() {
 	}, 150)
 
 	AfterEach(func() {
+		if CurrentGinkgoTestDescription().Failed {
+			cilium.ReportFailed(
+				"sudo docker ps -a",
+				"sudo cilium endpoint list")
+		}
 		containers("delete")
 		docker.Node.Exec("sudo systemctl start cilium")
 	})
