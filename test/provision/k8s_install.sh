@@ -34,6 +34,9 @@ sudo rm /var/lib/apt/lists/lock
 wget https://packages.cloud.google.com/apt/doc/apt-key.gpg
 apt-key add apt-key.gpg
 
+# Disable swap to avoid issues with kubeadm 1.8
+swapoff -a
+
 apt-get update
 apt-get install --allow-downgrades -y \
     llvm \
