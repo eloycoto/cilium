@@ -71,9 +71,9 @@ if [[ "${HOST}" == "k8s1" ]]; then
     /tmp/provision/compile.sh
 else
     kubeadm join --token=$TOKEN 192.168.36.11:6443
+    test -f /etc/kubernetes/kubelet.conf && cp /etc/kubernetes/kubelet.conf ${CILIUM_CONFIG_DIR}/kubeconfig
     sudo systemctl stop etcd
     docker pull k8s1:5000/cilium/cilium-dev:latest
-    cp /etc/kubernetes/kubelet.conf ${CILIUM_CONFIG_DIR}/kubeconfig
 fi
 
 sudo touch /etc/provision_finished
