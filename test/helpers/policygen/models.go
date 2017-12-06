@@ -66,6 +66,14 @@ func (pol *PolicyTest) SetTemplate(result *map[string]interface{}, spec *TestSpe
 	}
 
 	for k, v := range pol.template {
+		if _, ok := (*result)[k]; ok {
+			fmt.Printf("Is present here! %s\n", k)
+			fmt.Printf("Is present here! %s\n", k)
+			fmt.Printf("Is present here! %s\n", k)
+			fmt.Printf("Is present here! %s\n", k)
+			fmt.Printf("Is present here! %s\n", k)
+			continue
+		}
 
 		tmpl, err := getTemplate(v)
 		if err != nil {
