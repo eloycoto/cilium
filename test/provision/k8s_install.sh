@@ -26,6 +26,12 @@ fi
 
 $PROVISIONSRC/dns.sh
 
+export GOPATH=/go/
+go get github.com/kubernetes-incubator/cri-tools/cmd/crictl
+ln -sf /go/bin/* /usr/local/bin/
+
+swapoff -a
+
 cat <<EOF > /etc/hosts
 127.0.0.1       localhost
 ::1     localhost ip6-localhost ip6-loopback
@@ -73,7 +79,8 @@ sudo iptables --policy FORWARD ACCEPT
 #check hostname to know if is kubernetes or runtime test
 if [[ "${HOST}" == "k8s1" ]]; then
     # FIXME: IP needs to be dynamic
-    kubeadm init --token=$TOKEN --apiserver-advertise-address="192.168.36.11" --pod-network-cidr=10.10.0.0/16
+    kubeadm init --token=$TOKEN --apiserver-advertise-address="192.168.36.11" \
+        --pod-network-cidr=10.10.0.0/16  --ignore-preflight-errors cri
 
     mkdir -p /root/.kube
     sudo cp -i /etc/kubernetes/admin.conf /root/.kube/config
@@ -89,7 +96,8 @@ if [[ "${HOST}" == "k8s1" ]]; then
     sudo systemctl start etcd
     $PROVISIONSRC/compile.sh
 else
-    kubeadm join --token=$TOKEN 192.168.36.11:6443
+    kubeadm join --token=$TOKEN 192.168.36.11:6443 --ignore-preflight-errors cri \
+         --discovery-token-unsafe-skip-ca-verification
     cp /etc/kubernetes/kubelet.conf ${CILIUM_CONFIG_DIR}/kubeconfig
     sudo systemctl stop etcd
     docker pull k8s1:5000/cilium/cilium-dev:latest
