@@ -15,7 +15,9 @@
 package k8sTest
 
 import (
+	"context"
 	"fmt"
+	"sync"
 
 	. "github.com/cilium/cilium/test/ginkgo-ext"
 	"github.com/cilium/cilium/test/helpers"
@@ -29,6 +31,9 @@ var _ = Describe("NightlyPolicies", func() {
 
 	var kubectl *helpers.Kubectl
 	var logger *logrus.Entry
+	var once sync.Once
+	var ctx context.Context
+	var cancel context.CancelFunc
 
 	BeforeAll(func() {
 		logger = log.WithFields(logrus.Fields{"testName": "NightlyK8sPolicies"})
@@ -42,6 +47,7 @@ var _ = Describe("NightlyPolicies", func() {
 
 		err := kubectl.HeapsterDeploy()
 		Expect(err).To(BeNil(), "cannot deploy heapster")
+
 	})
 
 	AfterFailed(func() {
@@ -67,12 +73,21 @@ var _ = Describe("NightlyPolicies", func() {
 
 	})
 
+	MemoryProfiler := func(ctx context.Context) {
+		kubectl.CiliumExportInfo(ctx, "k8s_nightly_policies", map[string]string{
+			"endpoint_list": "kubectl get pods --all-namespaces | wc -l",
+		})
+	}
+
 	Context("PolicyEnforcement default", func() {
 		createTests := func() {
 			testSpecs := policygen.GeneratedTestSpec()
 			for _, test := range testSpecs {
 				func(testSpec policygen.TestSpec) {
 					It(fmt.Sprintf("%s", testSpec), func() {
+						ctx, cancel = context.WithCancel(context.Background())
+						defer cancel()
+						MemoryProfiler(ctx)
 						testSpec.RunTest(kubectl)
 					})
 				}(test)
