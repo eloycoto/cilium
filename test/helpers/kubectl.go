@@ -1099,6 +1099,7 @@ func (kub *Kubectl) CiliumExportInfo(ctx context.Context, prefix string, cmds ma
 
 	ticker := time.NewTicker(tickerSleep)
 	go func() {
+		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
