@@ -156,6 +156,9 @@ const (
 	StableImage = "cilium/cilium:stable"
 	configMap   = "ConfigMap"
 
+	monitorLogFileName = "monitor.log"
+	microscopeManifest = `https://raw.githubusercontent.com/cilium/microscope/master/docs/microscope.yaml`
+
 	deadLockHeader = "POTENTIAL DEADLOCK:" // from github.com/sasha-s/go-deadlock/deadlock.go:header
 )
 
