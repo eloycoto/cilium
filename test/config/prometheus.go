@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -21,6 +22,16 @@ var (
 
 // PrometheusMetrics maps the location of a Prometheus metric to the metric's value
 type PrometheusMetrics map[string]string
+
+func SetGatewayURL(URL string, user string, password string) error {
+	u, err := url.Parse(URL)
+	if err != nil {
+		return err
+	}
+	u.User = url.UserPassword(user, password)
+	GatewayURL = u.String()
+	return nil
+}
 
 // PushInfo pushes the given metrics to Prometheus gateway
 func PushInfo(metrics *PrometheusMetrics) error {

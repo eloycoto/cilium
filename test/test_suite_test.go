@@ -63,6 +63,10 @@ func init() {
 	if helpers.IsRunningOnJenkins() {
 		config.PrometheusEnabled = true
 		config.GatewayURL = "https://metrics.cilium.io/"
+		config.SetGatewayURL(
+			"https://metrics.cilium.io/",
+			os.Getenv("metrics_user"),
+			os.Getenv("metrics_password"))
 		config.PrometheusJob = os.Getenv("BUILD_ID")
 		config.PrometheusGroups["JenkisJobName"] = os.Getenv("JOB_NAME")
 	}
