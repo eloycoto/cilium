@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 
 dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+CERT_TMP_DIR=${2:-"${dir}"}
+
+if [ -z "${2}"]; then
+    echo "DEBUG: Using provided folder ${CERT_TMP_DIR}"
+fi
 
 if [ -z "$(which cfssl)" ]; then
     echo "Please install the cfssl utility and make sure you have it in your \$PATH"
@@ -27,7 +32,7 @@ if [ -z "${cluster_domain}" ]; then
     exit -1
 fi
 
-cd "${dir}"
+cd "${CERT_TMP_DIR}"
 
 echo "generating CA certs ==="
 cfssl gencert -initca ca-csr.json | cfssljson -bare ca

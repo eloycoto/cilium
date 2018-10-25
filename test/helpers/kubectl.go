@@ -28,13 +28,16 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/asaskevich/govalidator"
 	"github.com/cilium/cilium/api/v1/models"
 	"github.com/cilium/cilium/pkg/annotation"
 	cnpv2 "github.com/cilium/cilium/pkg/k8s/apis/cilium.io/v2"
 	"github.com/cilium/cilium/test/config"
 	"github.com/cilium/cilium/test/ginkgo-ext"
 
+
 	"github.com/asaskevich/govalidator"
+	"github.com/onsi/ginkgo"
 	"github.com/sirupsen/logrus"
 	"k8s.io/api/core/v1"
 )
@@ -1999,15 +2002,27 @@ func (kub *Kubectl) DeployETCDOperator() error {
 		return nil
 	}
 
-	cmdRes := kub.Exec(fmt.Sprintf("%s '%s'", GetFilePath(etcdOperatorPath+"tls/certs/gen-cert.sh"), "cluster.local"))
+	// In CI using a custom path to avoid issues with parallel execution in Jenkins
+	certTMPFolder := kub.Exec(fmt.Sprintf("mktemp -d"))
+	if !certTMPFolder.WasSuccessful() {
+		return fmt.Errorf("Cannot create temporal folder for etcd certs: %v", certTMPFolder.OutputPrettyPrint())
+	}
+
+	cmdRes := kub.Exec(fmt.Sprintf("%s '%s' %s",
+		GetFilePath(etcdOperatorPath+"tls/certs/gen-cert.sh"),
+		"cluster.local",
+		certTMPFolder.SingleOut()))
 	if !cmdRes.WasSuccessful() {
 		return fmt.Errorf("unable to generate tls certificates for etcd-operator: %s", cmdRes.OutputPrettyPrint())
 	}
+
 	// deploy-certs.sh can be called multiple times so it will fail if a
 	// certificate is already created, we will rely in the deployment
 	// of etcd-operator descriptors to check if something is wrong with
 	// the deployment.
-	_ = kub.Exec(GetFilePath(etcdOperatorPath + "tls/deploy-certs.sh"))
+	_ = kub.Exec(fmt.Sprintf("%s %s",
+		GetFilePath(etcdOperatorPath+"tls/deploy-certs.sh"),
+		certTMPFolder.SingleOut()))
 
 	for _, manifest := range etcdDeploymentFiles {
 		err := deployFile(manifest)
