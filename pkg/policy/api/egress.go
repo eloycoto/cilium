@@ -132,6 +132,17 @@ type EgressRule struct {
 	//
 	// +optional
 	ToFQDNs []FQDNSelector `json:"toFQDNs,omitempty"`
+
+	ToGroups []ToGroups `json:"toGroups,omitempty"`
+}
+
+type ToGroups struct {
+	Aws AWSToGroups `json:"aws,omitempty"`
+}
+
+type AWSToGroups struct {
+	Labels         map[string]string `json:"labels,omitempty"`
+	SecurityGroups []string          `json:"securityGroups,omitempty"`
 }
 
 // GetDestinationEndpointSelectors returns a slice of endpoints selectors

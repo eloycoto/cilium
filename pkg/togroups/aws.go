@@ -66,7 +66,7 @@ const (
 func InitializeAWSAccount(region string) (aws.Config, error) {
 	cfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
-		fmt.Errorf("Cannot initialize aws connector: %s", err)
+		return nil, fmt.Errorf("Cannot initialize aws connector: %s", err)
 	}
 	cfg.LogLevel = awsLogLevel
 	return cfg, nil
