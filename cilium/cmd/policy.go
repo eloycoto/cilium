@@ -27,7 +27,6 @@ import (
 
 	"github.com/cilium/cilium/pkg/logging/logfields"
 	"github.com/cilium/cilium/pkg/policy/api"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -135,6 +134,13 @@ func loadPolicyFile(path string) (api.Rules, error) {
 	}
 
 	var ruleList api.Rules
+	fmt.Println("#######################################################3")
+	fmt.Println("#######################################################3")
+	fmt.Println("#######################################################3")
+	fmt.Println(string(content))
+	fmt.Println("#######################################################3")
+	fmt.Println("#######################################################3")
+	fmt.Println("#######################################################3")
 	err = json.Unmarshal(content, &ruleList)
 	if err != nil {
 		return nil, handleUnmarshalError(path, content, err)

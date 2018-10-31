@@ -16,6 +16,7 @@ package togroups
 
 import (
 	"fmt"
+	"net"
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -63,18 +64,18 @@ const (
 
 // InitializeAWSAccount retrieve the env variables from the runtime and it
 // iniliazes the account in the specified region.
-func InitializeAWSAccount(region string) (aws.Config, error) {
+func InitializeAWSAccount(region string) (*aws.Config, error) {
 	cfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
 		return nil, fmt.Errorf("Cannot initialize aws connector: %s", err)
 	}
 	cfg.LogLevel = awsLogLevel
-	return cfg, nil
+	return &cfg, nil
 }
 
 //GetInstancesFromFilter returns the instances IPs in aws EC2 filter by the
 //given filter
-func GetInstancesIpsFromFilter(filter map[string][]string) []string {
+func GetInstancesIpsFromFilter(filter map[string][]string) []net.IP {
 	region := AWS_DEFAULT_REGION
 	regionValues, ok := filter["region"]
 	if ok {
@@ -90,7 +91,7 @@ func GetInstancesIpsFromFilter(filter map[string][]string) []string {
 	for key, val := range filter {
 		newFilterName, ok := EC2_FILTER_MAPPING[key]
 		if !ok {
-			log.Warning("AWS policy key not recognized %s", key)
+			log.Warningf("AWS policy key not recognized %s", key)
 		}
 
 		newFilter := ec2.Filter{
@@ -105,7 +106,7 @@ func GetInstancesIpsFromFilter(filter map[string][]string) []string {
 	if err != nil {
 		log.Errorf("New error here!")
 	}
-	svc := ec2.New(cfg)
+	svc := ec2.New(*cfg)
 	req := svc.DescribeInstancesRequest(input)
 	result, err := req.Send()
 
@@ -123,8 +124,8 @@ func GetDefaultRegion() string {
 	return AWS_DEFAULT_REGION
 }
 
-func awsDumpIpsFromRequest(req *ec2.DescribeInstancesOutput) []string {
-	result := []string{}
+func awsDumpIpsFromRequest(req *ec2.DescribeInstancesOutput) []net.IP {
+	result := []net.IP{}
 
 	if len(req.Reservations) == 0 {
 		return result
@@ -134,9 +135,9 @@ func awsDumpIpsFromRequest(req *ec2.DescribeInstancesOutput) []string {
 		for _, instance := range reservation.Instances {
 			for _, iface := range instance.NetworkInterfaces {
 				for _, ifaceIP := range iface.PrivateIpAddresses {
-					result = append(result, string(*ifaceIP.PrivateIpAddress))
+					result = append(result, net.IP(string(*ifaceIP.PrivateIpAddress)))
 					if ifaceIP.Association != nil {
-						result = append(result, string(*ifaceIP.Association.PublicIp))
+						result = append(result, net.IP(string(*ifaceIP.Association.PublicIp)))
 					}
 				}
 			}
