@@ -22,24 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/cilium/cilium/pkg/logging"
-	"github.com/cilium/cilium/pkg/logging/logfields"
 )
-
-// AND setup
-// - aws:
-//     securityGroups: [sg-baz1, sg-baz2]
-//     region: us-west1
-//     instanceLabels: [foo, bar]
-// OR setup
-// - group:
-//   - aws:
-//      securityGroupID: sg-baz1
-//      region: us-east1
-// - group:
-//   - aws:
-//      securityGroup: sg-baz2
-//      region: us-west1
 
 var (
 	EC2_FILTER_MAPPING = map[string]string{
@@ -47,8 +30,6 @@ var (
 		POLICY_SECURITY_GROUP_NAME_KEY: "instances.group-name",
 		POLICY_EC2_LABELS_KEY:          "instance.labels",
 	}
-
-	log = logging.DefaultLogger.WithField(logfields.LogSubsys, "ToGroupsAws")
 )
 
 const (

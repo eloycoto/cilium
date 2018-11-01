@@ -58,6 +58,7 @@ import (
 	"github.com/cilium/cilium/pkg/pprof"
 	"github.com/cilium/cilium/pkg/service"
 	"github.com/cilium/cilium/pkg/sockops"
+	"github.com/cilium/cilium/pkg/togroups"
 	"github.com/cilium/cilium/pkg/version"
 	"github.com/cilium/cilium/pkg/versioncheck"
 	"github.com/cilium/cilium/pkg/workloads"
@@ -1083,7 +1084,7 @@ func runDaemon() {
 	defer server.Shutdown()
 
 	server.ConfigureAPI()
-
+	togroups.Initialize()
 	repr, err := monitor.TimeRepr(time.Now())
 	if err != nil {
 		log.WithError(err).Warn("Failed to generate agent start monitor message")
