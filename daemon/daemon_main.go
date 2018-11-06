@@ -346,8 +346,8 @@ func init() {
 	flags.String(option.ClusterName, defaults.ClusterName, "Name of the cluster")
 	viper.BindEnv(option.ClusterName, option.ClusterNameEnv)
 	flags.BoolP("debug", "D", false, "Enable debugging mode")
-	flags.String(option.K8sAPIServerName, "", "Kubernetes api address server (for https use --k8s-kubeconfig-path instead)")
-	flags.String(option.K8sKubeConfigPathName, "", "Absolute path of the kubernetes kubeconfig file")
+	flags.StringVar(&option.Config.K8sAPIServer, option.K8sAPIServerName, "", "Kubernetes api address server (for https use --k8s-kubeconfig-path instead)")
+	flags.StringVar(&option.Config.K8sKubeConfigPath, option.K8sKubeConfigPathName, "", "Absolute path of the kubernetes kubeconfig file")
 	flags.String(option.KVStoreName, "", "Key-value store type")
 	flags.Var(option.NewNamedMapOptions(option.KVStoreOptsName, &option.Config.KVStoreOpts, nil),
 		option.KVStoreOptsName, "Key-value store options")
