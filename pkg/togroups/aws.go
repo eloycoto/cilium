@@ -19,29 +19,37 @@ import (
 	"net"
 	"os"
 
+	"github.com/cilium/cilium/pkg/policy/api"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 )
 
-var (
-	EC2_FILTER_MAPPING = map[string]string{
-		POLICY_SECURITY_GROUP_ID_KEY:   "instances.group-id",
-		POLICY_SECURITY_GROUP_NAME_KEY: "instances.group-name",
-		POLICY_EC2_LABELS_KEY:          "instance.labels",
-	}
-)
-
 const (
-	awsLogLevel            = aws.LogDebugWithSigning
+	awsLogLevel            = aws.LogOff // For debugging pourposes can be set to aws.LogDebugWithSigning
 	AWS_DEFAULT_REGION_KEY = "AWS_DEFAULT_REGION"
 	AWS_DEFAULT_REGION     = "eu-west-1"
-
-	POLICY_REGION_KEY              = "region"
-	POLICY_SECURITY_GROUP_ID_KEY   = "securityGroupID"
-	POLICY_SECURITY_GROUP_NAME_KEY = "securityGroupName"
-	POLICY_EC2_LABELS_KEY          = "labels"
 )
+
+var (
+	POLICY_SECURITY_GROUP_ID_KEY = aws.String("instance.group-id")
+	POLICY_SECURITY_GROUP_NAME   = aws.String("instance.group-name")
+	POLICY_EC2_LABELS_KEY        = "tag"
+)
+
+func init() {
+	api.RegisterToGroupsProvider(api.AWSPROVIDER, GetIPsFromGroup)
+}
+
+func GetIPsFromGroup(group *api.ToGroups) ([]net.IP, error) {
+	result := []net.IP{}
+	if group.Aws == nil {
+		return result, fmt.Errorf("no aws data available")
+	}
+	ips, err := GetInstancesIpsFromFilter(group.Aws)
+	return ips, err
+}
 
 // InitializeAWSAccount retrieve the env variables from the runtime and it
 // iniliazes the account in the specified region.
@@ -50,51 +58,58 @@ func InitializeAWSAccount(region string) (*aws.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Cannot initialize aws connector: %s", err)
 	}
+	cfg.Region = GetDefaultRegion()
 	cfg.LogLevel = awsLogLevel
 	return &cfg, nil
 }
 
 //GetInstancesFromFilter returns the instances IPs in aws EC2 filter by the
 //given filter
-func GetInstancesIpsFromFilter(filter map[string][]string) []net.IP {
-	region := AWS_DEFAULT_REGION
-	regionValues, ok := filter["region"]
-	if ok {
-		region = regionValues[0]
+func GetInstancesIpsFromFilter(filter *api.AWSGroups) ([]net.IP, error) {
+
+	region := filter.Region
+	if filter.Region != "" {
+		region = GetDefaultRegion()
 	}
 
 	input := &ec2.DescribeInstancesInput{}
 
-	if len(filter) > 0 {
-		input.Filters = []ec2.Filter{}
-	}
-
-	for key, val := range filter {
-		newFilterName, ok := EC2_FILTER_MAPPING[key]
-		if !ok {
-			log.Warningf("AWS policy key not recognized %s", key)
-		}
-
+	for labelKey, labelValue := range filter.Labels {
 		newFilter := ec2.Filter{
-			Name:   aws.String(newFilterName),
-			Values: val,
+			Name:   aws.String(fmt.Sprintf("%s:%s", POLICY_EC2_LABELS_KEY, labelKey)),
+			Values: []string{labelValue},
 		}
 		input.Filters = append(input.Filters, newFilter)
+	}
 
+	if len(filter.SecurityGroupsIds) > 0 {
+		newFilter := ec2.Filter{
+			Name:   POLICY_SECURITY_GROUP_ID_KEY,
+			Values: filter.SecurityGroupsIds,
+		}
+		input.Filters = append(input.Filters, newFilter)
+	}
+
+	if len(filter.SecurityGroupsNames) > 0 {
+		newFilter := ec2.Filter{
+			Name:   POLICY_SECURITY_GROUP_NAME,
+			Values: filter.SecurityGroupsNames,
+		}
+		input.Filters = append(input.Filters, newFilter)
 	}
 
 	cfg, err := InitializeAWSAccount(region)
 	if err != nil {
-		log.Errorf("New error here!")
+		return []net.IP{}, err
 	}
 	svc := ec2.New(*cfg)
 	req := svc.DescribeInstancesRequest(input)
 	result, err := req.Send()
 
 	if err != nil {
-		log.Errorf("Can't get the data")
+		return []net.IP{}, fmt.Errorf("Cannot retrieve aws information: %s", err)
 	}
-	return awsDumpIpsFromRequest(result)
+	return awsDumpIpsFromRequest(result), nil
 }
 
 func GetDefaultRegion() string {
@@ -116,9 +131,9 @@ func awsDumpIpsFromRequest(req *ec2.DescribeInstancesOutput) []net.IP {
 		for _, instance := range reservation.Instances {
 			for _, iface := range instance.NetworkInterfaces {
 				for _, ifaceIP := range iface.PrivateIpAddresses {
-					result = append(result, net.IP(string(*ifaceIP.PrivateIpAddress)))
+					result = append(result, net.ParseIP(string(*ifaceIP.PrivateIpAddress)))
 					if ifaceIP.Association != nil {
-						result = append(result, net.IP(string(*ifaceIP.Association.PublicIp)))
+						result = append(result, net.ParseIP(string(*ifaceIP.Association.PublicIp)))
 					}
 				}
 			}

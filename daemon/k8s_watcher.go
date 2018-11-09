@@ -1331,6 +1331,11 @@ func updateCNPNodeStatus(cnp *cilium_v2.CiliumNetworkPolicy, enforcing, ok bool,
 		err2  error
 	)
 
+	if !cnp.ChildrenPoliciesAlreadyEnforce() {
+		log.Info("cannot set enforce in a policy because childrens are not in place yet")
+		enforcing = false
+	}
+
 	if err != nil {
 		cnpns = cilium_v2.CiliumNetworkPolicyNodeStatus{
 			Enforcing:   enforcing,

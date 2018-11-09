@@ -117,6 +117,8 @@ func runOperator(cmd *cobra.Command) {
 		log.WithError(err).Fatal("Unable to connect to Kubernetes apiserver")
 	}
 
+	go EnableK8sWatcher()
+
 	for {
 		time.Sleep(time.Second)
 	}

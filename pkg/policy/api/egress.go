@@ -132,7 +132,7 @@ type EgressRule struct {
 	//
 	// +optional
 	ToFQDNs []FQDNSelector `json:"toFQDNs,omitempty"`
-
+	// @TODO comment here
 	ToGroups []ToGroups `json:"toGroups,omitempty"`
 }
 
@@ -149,4 +149,28 @@ func (e *EgressRule) GetDestinationEndpointSelectors() EndpointSelectorSlice {
 // setting any To field.
 func (e *EgressRule) IsLabelBased() bool {
 	return len(e.ToRequires)+len(e.ToCIDR)+len(e.ToCIDRSet)+len(e.ToServices) == 0
+}
+
+func (e *EgressRule) HasChildrenPolicy() bool {
+	if len(e.ToGroups) > 0 {
+		return true
+	}
+	return false
+}
+
+func (e *EgressRule) CreateChildrenPolicy() (*EgressRule, error) {
+	newEgressRule := e.DeepCopy()
+	if len(e.ToGroups) == 0 {
+		return newEgressRule, nil
+	}
+	newEgressRule.ToGroups = []ToGroups{}
+
+	for _, group := range e.ToGroups {
+		cidrSet, err := group.GetCidrSet()
+		if err != nil {
+			return newEgressRule, err
+		}
+		newEgressRule.ToCIDRSet = append(newEgressRule.ToCIDRSet, cidrSet...)
+	}
+	return newEgressRule, nil
 }

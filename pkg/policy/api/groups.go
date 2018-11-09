@@ -14,8 +14,29 @@
 
 package api
 
+import (
+	"bytes"
+	"fmt"
+	"net"
+	"sort"
+)
+
+type ProviderIntegration func(*ToGroups) ([]net.IP, error)
+
+const (
+	AWSPROVIDER = "AWS"
+)
+
+var (
+	providers = map[string]ProviderIntegration{}
+)
+
+type ToGroupsActions interface {
+	GetIPs(ToGroups) []net.IP
+}
+
 type ToGroups struct {
-	Aws AWSGroups `json:"aws,omitempty"`
+	Aws *AWSGroups `json:"aws,omitempty"`
 }
 
 type AWSGroups struct {
@@ -23,4 +44,53 @@ type AWSGroups struct {
 	SecurityGroupsIds   []string          `json:"securityGroupsIds,omitempty"`
 	SecurityGroupsNames []string          `json:"securityGroupsNames,omitempty"`
 	Region              string            `json:"region,omitempty"`
+}
+
+func RegisterToGroupsProvider(providerName string, callback ProviderIntegration) {
+	providers[providerName] = callback
+}
+
+func (group *ToGroups) GetCidrSet() ([]CIDRRule, error) {
+
+	var ips []net.IP
+	emptyResult := []CIDRRule{}
+
+	// Get per  provider CIDRSet
+	if group.Aws != nil {
+		callback, ok := providers[AWSPROVIDER]
+		if !ok {
+			return emptyResult, fmt.Errorf("Provider %s is not registered", AWSPROVIDER)
+		}
+
+		awsIPs, err := callback(group)
+		if err != nil {
+			return emptyResult, fmt.Errorf(
+				"Cannot retrieve data from %s provider: %s",
+				AWSPROVIDER, err)
+		}
+		ips = append(ips, awsIPs...)
+	}
+
+	// Sort IPS to have always the same result and do not update policies if it is not needed.
+	sort.Slice(ips, func(i, j int) bool {
+		return bytes.Compare(ips[i], ips[j]) < 0
+	})
+	return ipsToRules(ips), nil
+}
+
+// ipsToRules generates CIDRRules for the IPs passed in.
+func ipsToRules(ips []net.IP) (cidrRules []CIDRRule) {
+	for _, ip := range ips {
+		rule := CIDRRule{ExceptCIDRs: make([]CIDR, 0)}
+		rule.Generated = true
+		if ip.To4() != nil {
+			rule.Cidr = CIDR(ip.String() + "/32")
+		} else {
+			rule.Cidr = CIDR(ip.String() + "/128")
+		}
+
+		cidrRules = append(cidrRules, rule)
+	}
+
+	return cidrRules
 }

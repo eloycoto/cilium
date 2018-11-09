@@ -61,3 +61,27 @@ type Rule struct {
 	// +optional
 	Description string `json:"description,omitempty"`
 }
+
+func (r *Rule) HasChildrenPolicy() bool {
+	for _, rule := range r.Egress {
+		if rule.HasChildrenPolicy() {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *Rule) CreateChildrenPolicy() (*Rule, error) {
+	newRule := r.DeepCopy()
+	newRule.Egress = []EgressRule{}
+	newRule.Ingress = []IngressRule{}
+
+	for _, egressRule := range r.Egress {
+		childEgressRule, err := egressRule.CreateChildrenPolicy()
+		if err != nil {
+			return newRule, err
+		}
+		newRule.Egress = append(newRule.Egress, *childEgressRule)
+	}
+	return newRule, nil
+}
