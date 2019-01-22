@@ -108,16 +108,76 @@ type DNSCache struct {
 	// This map is subordinate to forward, above. An IP inserted into forward, or
 	// expired in forward, should also be added/removed in reverse.
 	reverse map[string]nameEntries
+
+	cleanup map[int64][]string
+
+	cleanupStop         chan bool
+	cleanupNotification chan []string
 }
 
 // NewDNSCache returns an initialized DNSCache
 func NewDNSCache() *DNSCache {
 	c := &DNSCache{
-		forward: make(map[string]ipEntries),
-		reverse: make(map[string]nameEntries),
+		forward:             make(map[string]ipEntries),
+		reverse:             make(map[string]nameEntries),
+		cleanup:             map[int64][]string{},
+		cleanupNotification: make(chan []string, 100),
 	}
-
+	go c.CleanupStart()
 	return c
+}
+
+func (c *DNSCache) CleanupStop() {
+	c.cleanupStop <- true
+}
+
+func (c *DNSCache) CleanupStart() {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-c.cleanupStop:
+			return
+		case t := <-ticker.C:
+			go c.cleanupEntriesTTL(t)
+		}
+
+	}
+}
+
+func (c *DNSCache) cleanupEntriesTTL(expired time.Time) {
+	//@TODO Add a metric here.
+	c.Lock()
+	defer c.Unlock()
+	unixtime := expired.Unix()
+	entriesToCleanup, ok := c.cleanup[unixtime]
+	if !ok {
+		return
+	}
+	for _, cleanEntry := range entriesToCleanup {
+		entry, exists := c.forward[cleanEntry]
+		if !exists {
+			continue
+		}
+		c.removeExpired(entry, expired)
+	}
+	// @todo send notification back channel
+	log.Errorf("Eloy---Here to delete")
+	delete(c.cleanup, unixtime)
+	c.cleanupNotification <- entriesToCleanup
+}
+
+func (c *DNSCache) cleanupAddEntry(entry *cacheEntry) {
+	expiration := int64(entry.TTL) + time.Now().Unix()
+	expiredEntries, exists := c.cleanup[expiration]
+	if !exists {
+		expiredEntries = []string{}
+	}
+	c.cleanup[expiration] = append(expiredEntries, entry.Name)
+}
+
+func (c *DNSCache) CleanupNotification() <-chan []string {
+	return c.cleanupNotification
 }
 
 // Update inserts a new entry into the cache.
@@ -154,9 +214,11 @@ func (c *DNSCache) updateWithEntry(entry *cacheEntry) {
 		c.forward[entry.Name] = entries
 	}
 	c.updateWithEntryIPs(entries, entry)
+	c.cleanupAddEntry(entry)
+
 	// When lookupTime is much earlier than time.Now(), we may not expire all
 	// entries that should be expired, leaving more work for .Lookup.
-	c.removeExpired(entries, time.Now())
+	// c.removeExpired(entries, time.Now())
 }
 
 // UpdateFromCache is a utility function that allows updating a DNSCache
@@ -255,7 +317,7 @@ func (c *DNSCache) lookupIPByTime(now time.Time, ip net.IP) (names []string) {
 	return names
 }
 
-// updateWithEntry adds a mapping for every IP found in `entry` to `ipEntries`
+// updateWithEntryIPs adds a mapping for every IP found in `entry` to `ipEntries`
 // (which maps IP -> cacheEntry). It will replace existing IP->old mappings in
 // `entries` if the current entry expires sooner (or has already expired).
 // This needs a write lock

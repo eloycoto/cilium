@@ -406,3 +406,24 @@ func benchmarkUnmarshalJSON(c *C, numDNSEntries int) {
 		c.Assert(err, IsNil)
 	}
 }
+
+func (ds *DNSCacheTestSuite) TestCleanupEntries(c *C) {
+	cache := NewDNSCache()
+	cache.Update(now, "test.com", []net.IP{net.ParseIP("1.2.3.4")}, 3)
+	c.Assert(len(cache.cleanup), Equals, 1)
+	// Sleep to make sure that it's deleted
+	time.Sleep(5 * time.Second)
+	c.Assert(len(cache.cleanup), Equals, 0)
+}
+
+func (ds *DNSCacheTestSuite) TestCleanupEntriesWithoutForward(c *C) {
+	// This takes make sure if the forward entry was deleted by policy delete
+	// or user, is still be able to run without any panic.
+	cache := NewDNSCache()
+	cache.Update(now, "test.com", []net.IP{net.ParseIP("1.2.3.4")}, 3)
+	c.Assert(len(cache.cleanup), Equals, 1)
+	delete(cache.forward, "test.com")
+	// Sleep to make sure that it's deleted
+	time.Sleep(5 * time.Second)
+	c.Assert(len(cache.cleanup), Equals, 0)
+}

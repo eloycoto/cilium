@@ -100,6 +100,14 @@ func (d *Daemon) bootstrapFQDN(restoredEndpoints *endpointRestoreState) (err err
 		fqdn.StartDNSPoller(d.dnsPoller)
 	}
 
+	go func() {
+		for {
+			select {
+			case toDelete := <-cfg.Cache.CleanupNotification():
+				log.Errorf("Eloy---ToDelete %v", toDelete)
+			}
+		}
+	}()
 	// Prefill the cache with DNS lookups from restored endpoints. This is needed
 	// to maintain continuity of which IPs are allowed.
 	// Note: This is TTL aware, and expired data will not be used (e.g. when
