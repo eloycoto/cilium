@@ -235,7 +235,9 @@ func (p *DNSProxy) UpdateAllowed(reStrToAdd, reStrToRemove []string, endpointID 
 // returns true if this endpointID was added (via AddAllowed) previously.
 func (p *DNSProxy) CheckAllowed(name, endpointID string) bool {
 	name = strings.ToLower(name)
+	log.Error("Eloy Before Lock")
 	p.Lock()
+	log.Error("Eloy is already Lock")
 	defer p.Unlock()
 	return p.allowed.LookupContainsValue(name, endpointID)
 }

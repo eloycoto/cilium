@@ -109,75 +109,18 @@ type DNSCache struct {
 	// expired in forward, should also be added/removed in reverse.
 	reverse map[string]nameEntries
 
-	cleanup map[int64][]string
-
-	cleanupStop         chan bool
-	cleanupNotification chan []string
+	cleanup *dnsExpiresJob
 }
 
 // NewDNSCache returns an initialized DNSCache
 func NewDNSCache() *DNSCache {
 	c := &DNSCache{
-		forward:             make(map[string]ipEntries),
-		reverse:             make(map[string]nameEntries),
-		cleanup:             map[int64][]string{},
-		cleanupNotification: make(chan []string, 100),
+		forward: make(map[string]ipEntries),
+		reverse: make(map[string]nameEntries),
+		cleanup: newDNSExpiresNotification(),
 	}
-	go c.CleanupStart()
+	go c.cleanup.Start()
 	return c
-}
-
-func (c *DNSCache) CleanupStop() {
-	c.cleanupStop <- true
-}
-
-func (c *DNSCache) CleanupStart() {
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-c.cleanupStop:
-			return
-		case t := <-ticker.C:
-			go c.cleanupEntriesTTL(t)
-		}
-
-	}
-}
-
-func (c *DNSCache) cleanupEntriesTTL(expired time.Time) {
-	//@TODO Add a metric here.
-	c.Lock()
-	defer c.Unlock()
-	unixtime := expired.Unix()
-	entriesToCleanup, ok := c.cleanup[unixtime]
-	if !ok {
-		return
-	}
-	for _, cleanEntry := range entriesToCleanup {
-		entry, exists := c.forward[cleanEntry]
-		if !exists {
-			continue
-		}
-		c.removeExpired(entry, expired)
-	}
-	// @todo send notification back channel
-	log.Errorf("Eloy---Here to delete")
-	delete(c.cleanup, unixtime)
-	c.cleanupNotification <- entriesToCleanup
-}
-
-func (c *DNSCache) cleanupAddEntry(entry *cacheEntry) {
-	expiration := int64(entry.TTL) + time.Now().Unix()
-	expiredEntries, exists := c.cleanup[expiration]
-	if !exists {
-		expiredEntries = []string{}
-	}
-	c.cleanup[expiration] = append(expiredEntries, entry.Name)
-}
-
-func (c *DNSCache) CleanupNotification() <-chan []string {
-	return c.cleanupNotification
 }
 
 // Update inserts a new entry into the cache.
@@ -214,7 +157,7 @@ func (c *DNSCache) updateWithEntry(entry *cacheEntry) {
 		c.forward[entry.Name] = entries
 	}
 	c.updateWithEntryIPs(entries, entry)
-	c.cleanupAddEntry(entry)
+	c.cleanup.AddEntry(entry)
 
 	// When lookupTime is much earlier than time.Now(), we may not expire all
 	// entries that should be expired, leaving more work for .Lookup.
@@ -442,3 +385,77 @@ func (c *DNSCache) UnmarshalJSON(raw []byte) error {
 
 	return nil
 }
+
+type dnsExpiresJob struct {
+	lock.RWMutex
+
+	lastTime time.Time
+	cleanup  map[int64][]string
+
+	// cleanupStop         chan bool
+	// cleanupNotification chan []string
+}
+
+func newDNSExpiresNotification() *dnsExpiresJob {
+	expiresJob := &dnsExpiresJob{
+		cleanup: map[int64][]string{},
+		// cleanupNotification: make(chan []string, 1),
+		// cleanupStop:         make(chan bool, 1),
+		lastTime: time.Now(),
+	}
+	return expiresJob
+}
+
+func (job *dnsExpiresJob) AddEntry(entry *cacheEntry) {
+	job.Lock()
+	defer job.Unlock()
+	expiration := int64(entry.TTL) + time.Now().Unix()
+	expiredEntries, exists := job.cleanup[expiration]
+	if !exists {
+		expiredEntries = []string{}
+	}
+	job.cleanup[expiration] = append(expiredEntries, entry.Name)
+}
+
+// func (job *dnsExpiresJob) CleanupStop() {
+// 	job.cleanupStop <- true
+// }
+
+// func (job *dnsExpiresJob) Start() {
+// 	ticker := time.NewTicker(time.Second)
+// 	defer ticker.Stop()
+// 	for {
+// 		select {
+// 		case <-job.cleanupStop:
+// 			return
+// 		case t := <-ticker.C:
+// 			job.sendCleanNotification(t)
+// 		}
+// 	}
+// }
+
+func (job *dnsExpiresJob) sendCleanNotification(expires time.Time) {
+	job.Lock()
+	defer job.Unlock()
+	timediff := int(expires.Sub(job.lastTime).Seconds())
+	expiredEntries := []string{}
+
+	for i := 0; i < int(timediff); i++ {
+		job.lastTime.Add(time.Second)
+		entries, exists := job.cleanup[job.lastTime.Unix()]
+		if !exists {
+			continue
+		}
+		expiredEntries = append(expiredEntries, entries...)
+		delete(job.cleanup, job.lastTime.Unix())
+	}
+	if len(expiredEntries) == 0 {
+		return
+	}
+	return expiredEntries
+	// job.cleanupNotification <- expiredEntries
+}
+
+// func (job *dnsExpiresJob) CleanupNotification() <-chan []string {
+// 	return job.cleanupNotification
+// }
