@@ -1144,13 +1144,19 @@ func (epS *epSorter) Less(i, j int) bool {
 	return epS.by(epS.eps[i], epS.eps[j])
 }
 
+func (e *Endpoint) EloyLog(merda string) {
+	e.getLogger().Errorf("Eloy-->Endpoint %v ---> %s", e.ID, merda)
+}
+
 // base64 returns the endpoint in a base64 format.
 func (e *Endpoint) base64() (string, error) {
 	var (
 		jsonBytes []byte
 		err       error
 	)
-
+	data, _ := e.DNSHistory.MarshalJSON()
+	e.getLogger().Errorf("Eloy-->Endpoint %v ---> %s", e.ID, data)
+	e.DNSHistory.DumpB(e.ID)
 	transformEndpointForDowngrade(e)
 	jsonBytes, err = json.Marshal(e)
 	if err != nil {

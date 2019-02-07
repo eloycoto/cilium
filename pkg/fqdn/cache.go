@@ -20,7 +20,6 @@ import (
 	"regexp"
 	"sort"
 	"time"
-	"unsafe"
 
 	"github.com/cilium/cilium/pkg/ip"
 	"github.com/cilium/cilium/pkg/lock"
@@ -506,6 +505,23 @@ func (c *DNSCache) ForceExpire(expireLookupsBefore time.Time, nameMatch *regexp.
 	return namesAffected
 }
 
+func (c *DNSCache) DumpB(epID uint16) {
+	c.RLock()
+	defer c.RUnlock()
+
+	now := time.Now()
+	for _, entries := range c.forward {
+		for _, entry := range entries {
+			if entry.isExpiredBy(now) {
+				log.Errorf("EXPIRED-ELOY-Endpoiint %v with entry %+v on entries %+v", epID, entry, entries)
+			} else {
+				log.Errorf("NOTEXPIRED-ELOY-Endpoiint %v with entry %+v on entries %+v", epID, entry, entries)
+			}
+
+		}
+	}
+}
+
 // Dump returns unexpired cache entries in the cache. They are deduplicated,
 // but not usefully sorted. These objects should not be modified.
 func (c *DNSCache) Dump() (lookups []*cacheEntry) {
@@ -523,24 +539,24 @@ func (c *DNSCache) Dump() (lookups []*cacheEntry) {
 			}
 		}
 	}
+	return lookups
+	// // Dedup the entries. They are created once and are immutable so the address
+	// // is a unique identifier.
+	// // We iterate through the list, keeping unique pointers. This is correct
+	// // because the list is sorted and, if two consecutive entries are the same,
+	// // it is safe to overwrite the second duplicate.
+	// sort.Slice(lookups, func(i, j int) bool {
+	// 	return uintptr(unsafe.Pointer(lookups[i])) < uintptr(unsafe.Pointer(lookups[j]))
+	// })
 
-	// Dedup the entries. They are created once and are immutable so the address
-	// is a unique identifier.
-	// We iterate through the list, keeping unique pointers. This is correct
-	// because the list is sorted and, if two consecutive entries are the same,
-	// it is safe to overwrite the second duplicate.
-	sort.Slice(lookups, func(i, j int) bool {
-		return uintptr(unsafe.Pointer(lookups[i])) < uintptr(unsafe.Pointer(lookups[j]))
-	})
+	// deduped := lookups[:0] // len==0 but cap==cap(lookups)
+	// for readIdx, lookup := range lookups {
+	// 	if readIdx == 0 || deduped[len(deduped)-1] != lookups[readIdx] {
+	// 		deduped = append(deduped, lookup)
+	// 	}
+	// }
 
-	deduped := lookups[:0] // len==0 but cap==cap(lookups)
-	for readIdx, lookup := range lookups {
-		if readIdx == 0 || deduped[len(deduped)-1] != lookups[readIdx] {
-			deduped = append(deduped, lookup)
-		}
-	}
-
-	return deduped
+	// return deduped
 }
 
 // MarshalJSON serialises the set of DNS lookup cacheEntries needed to
@@ -548,6 +564,7 @@ func (c *DNSCache) Dump() (lookups []*cacheEntry) {
 // Note: Expiration times are honored and the reconstructed cache instance is
 // expected to return the same values as the original at that point in time.
 func (c *DNSCache) MarshalJSON() ([]byte, error) {
+	log.Errorf("ELOY----MarshalHappens")
 	lookups := c.Dump()
 
 	// serialise into a JSON object array

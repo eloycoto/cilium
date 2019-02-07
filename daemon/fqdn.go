@@ -72,7 +72,10 @@ func (d *Daemon) bootstrapFQDN(restoredEndpoints *endpointRestoreState) (err err
 			// Insert the new rules into the policy repository. We need them to
 			// replace the previous set. This requires the labels to match (including
 			// the ToFQDN-UUID one).
+
+			log.Errorf("Eloy---AddGeneratedRules --Start policy=%v", d.policy.GetRevision())
 			_, err := d.PolicyAdd(generatedRules, &AddOptions{Replace: true, Generated: true})
+			log.Errorf("Eloy---AddGeneratedRules --Finish--Error %v policy %v", err, d.policy.GetRevision())
 			return err
 		},
 		PollerResponseNotify: func(lookupTime time.Time, qname string, response *fqdn.DNSIPRecords) {
@@ -164,6 +167,8 @@ func (d *Daemon) bootstrapFQDN(restoredEndpoints *endpointRestoreState) (err err
 	// Note: This is TTL aware, and expired data will not be used (e.g. when
 	// restoring after a long delay).
 	for _, restoredEP := range restoredEndpoints.restored {
+		data, _ := restoredEP.DNSHistory.MarshalJSON()
+		log.Errorf("restoreEP --%v %s", restoredEP.ID, data)
 		// Upgrades from old ciliums have this nil
 		if restoredEP.DNSHistory != nil {
 			fqdn.DefaultDNSCache.UpdateFromCache(restoredEP.DNSHistory, []string{})
@@ -329,12 +334,14 @@ func (d *Daemon) bootstrapFQDN(restoredEndpoints *endpointRestoreState) (err err
 					effectiveTTL = option.Config.ToFQDNsMinTTL
 				}
 				ep.DNSHistory.Update(lookupTime, qname, responseIPs, effectiveTTL)
+				ep.EloyLog(fmt.Sprintf("Updated lookup on endpoint %s", qname))
 				log.Debug("Updating DNS name in cache from response to to query")
 				err = d.dnsRuleGen.UpdateGenerateDNS(lookupTime, map[string]*fqdn.DNSIPRecords{
 					qname: {
 						IPs: responseIPs,
 						TTL: int(effectiveTTL),
 					}})
+				ep.EloyLog(fmt.Sprintf("UpdateGeneratedDNS result %v", err))
 				if err != nil {
 					log.WithError(err).Error("error updating internal DNS cache for rule generation")
 				}

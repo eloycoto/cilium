@@ -15,6 +15,8 @@
 package fqdn
 
 import (
+	"fmt"
+	"math/rand"
 	"net"
 	"strings"
 	"time"
@@ -230,7 +232,12 @@ func (gen *RuleGen) GetDNSNames() (dnsNames []string) {
 // regenerate them, and emit via AddGeneratedRules.
 func (gen *RuleGen) UpdateGenerateDNS(lookupTime time.Time, updatedDNSIPs map[string]*DNSIPRecords) error {
 	// Update IPs in gen
+	rand.Seed(time.Now().UnixNano())
+	ID := fmt.Sprintf("%08x", rand.Uint32())
+	IDLOG := log.WithField("ID", ID)
+	IDLOG.Errorf("ELOY--Starting lookupTime %v,DNSIPS: %+v", lookupTime, updatedDNSIPs)
 	uuidsToUpdate, updatedDNSNames := gen.UpdateDNSIPs(lookupTime, updatedDNSIPs)
+	IDLOG.Errorf("uuidsToUpdate %v, updatedDNSNames %v", uuidsToUpdate, updatedDNSNames)
 	for dnsName, IPs := range updatedDNSNames {
 		log.WithFields(logrus.Fields{
 			"matchName":     dnsName,
@@ -253,8 +260,10 @@ func (gen *RuleGen) UpdateGenerateDNS(lookupTime time.Time, updatedDNSIPs map[st
 
 	// no new rules to add, do not call AddGeneratedRules below
 	if len(generatedRules) == 0 {
+		IDLOG.Error("Eloy---There are no rules to generate ADD")
 		return nil
 	}
+	IDLOG.Errorf("Create a lot of new rules %v", len(generatedRules))
 
 	// emit the new rules
 	return gen.config.AddGeneratedRules(generatedRules)
@@ -311,10 +320,12 @@ func (gen *RuleGen) UpdateDNSIPs(lookupTime time.Time, updatedDNSIPs map[string]
 
 perDNSName:
 	for dnsName, lookupIPs := range updatedDNSIPs {
+		// eloy here!
 		updated := gen.updateIPsForName(lookupTime, dnsName, lookupIPs.IPs, lookupIPs.TTL)
 
 		// The IPs didn't change. No more to be done for this dnsName
 		if !updated {
+			log.Errorf("ELOY--DNSNAME %v and IP %v did not change from cache", dnsName, lookupIPs)
 			continue perDNSName
 		}
 

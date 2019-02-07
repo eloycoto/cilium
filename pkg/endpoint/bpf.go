@@ -128,6 +128,7 @@ func WriteIPCachePrefixes(fw *bufio.Writer, getBPFData getBPFDataCallback) {
 }
 
 func (e *Endpoint) writeHeaderfile(prefix string, owner Owner) error {
+	e.getLogger().Errorf("Eloy-->Endpoint compilation %v ---> %v", e.ID, e.policyRevision)
 	headerPath := filepath.Join(prefix, common.CHeaderFileName)
 	f, err := os.Create(headerPath)
 	if err != nil {
@@ -141,6 +142,7 @@ func (e *Endpoint) writeHeaderfile(prefix string, owner Owner) error {
 	fmt.Fprint(fw, "/*\n")
 
 	epStr64, err := e.base64()
+	e.getLogger().Errorf("Eloy-->Endpoint Base64 encode result-- %v %v", e.ID, err)
 	if err == nil {
 		var verBase64 string
 		verBase64, err = version.Base64()

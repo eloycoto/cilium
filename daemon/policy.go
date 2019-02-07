@@ -263,6 +263,7 @@ func (d *Daemon) PolicyAdd(rules policyAPI.Rules, opts *AddOptions) (uint64, err
 	}
 
 	log.WithField(logfields.PolicyRevision, rev).Info("Policy imported via API, recalculating...")
+	log.WithField(logfields.PolicyRevision, rev).Errorf("Eloy--REvision bump in policyAdd %v %v", rev, d.policy.GetRevision())
 
 	d.TriggerPolicyUpdates(false, "policy rules added")
 
