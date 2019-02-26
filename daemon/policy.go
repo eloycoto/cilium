@@ -186,7 +186,7 @@ func (d *Daemon) PolicyAdd(rules policyAPI.Rules, opts *AddOptions) (uint64, err
 	}
 	// These must be marked before actually adding them to the repository since a
 	// copy may be made and we won't be able to add the ToFQDN tracking labels
-	d.dnsRuleGen.MarkToFQDNRules(rules)
+	isNewFQDN := d.dnsRuleGen.MarkToFQDNRules(rules)
 
 	prefixes := policy.GetCIDRPrefixes(rules)
 	logger.WithField("prefixes", prefixes).Debug("Policy imported via API, found CIDR prefixes...")
@@ -216,10 +216,24 @@ func (d *Daemon) PolicyAdd(rules policyAPI.Rules, opts *AddOptions) (uint64, err
 		metrics.PolicyImportErrors.Inc()
 		logger.WithError(err).WithField("prefixes", prefixes).Warn(
 			"Failed to allocate identities for CIDRs during policy add")
-		return d.policy.GetRevision(), err
+		d.policy.Mutex.Lock()
+		rev := d.policy.GetRevision()
+		d.policy.Mutex.Unlock()
+		return rev, err
 	}
 
 	d.policy.Mutex.Lock()
+
+	if !isNewFQDN {
+		newRules := []*policyAPI.Rule{}
+		for _, rule := range rules {
+			repoRule := d.policy.SearchRLocked(rule.Labels)
+			for _, dstRule := range repoRule {
+				newRules = append(newRules, dstRule)
+			}
+		}
+		rules = newRules
+	}
 	// removedPrefixes tracks prefixes that we replace in the rules. It is used
 	// after we release the policy repository lock.
 	var removedPrefixes []*net.IPNet

@@ -108,9 +108,11 @@ func NewRuleGen(config Config) *RuleGen {
 // when they are regenerated with IPs. It will also include the generated IPs
 // (in the ToCIDRSet) section for DNS names already present in the cache.
 // NOTE: It edits the rules in-place
-func (gen *RuleGen) MarkToFQDNRules(sourceRules []*api.Rule) {
+func (gen *RuleGen) MarkToFQDNRules(sourceRules []*api.Rule) bool {
 	gen.Lock()
 	defer gen.Unlock()
+
+	var isNewFQDN bool
 
 perRule:
 	for _, sourceRule := range sourceRules {
@@ -124,6 +126,7 @@ perRule:
 			continue perRule
 		}
 
+		isNewFQDN = true
 		// add a unique ID that we can use later to replace this rule.
 		uuidLabel := generateUUIDLabel()
 		sourceRule.Labels = append(sourceRule.Labels, uuidLabel)
@@ -143,6 +146,7 @@ perRule:
 				Debug("No IPs to inject on initial rule insert")
 		}
 	}
+	return isNewFQDN
 }
 
 // StartManageDNSName begins managing sourceRules that contain toFQDNs
