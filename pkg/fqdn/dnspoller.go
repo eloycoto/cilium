@@ -66,10 +66,6 @@ type DNSPoller struct {
 
 // NewDNSPoller creates an initialized DNSPoller. It does not start the controller (use .Start)
 func NewDNSPoller(config Config, ruleManager *RuleGen) *DNSPoller {
-	if config.MinTTL == 0 {
-		config.MinTTL = 2 * int(DNSPollerInterval/time.Second)
-	}
-
 	if config.LookupDNSNames == nil {
 		config.LookupDNSNames = DNSLookupDefaultResolver
 	}
@@ -79,11 +75,7 @@ func NewDNSPoller(config Config, ruleManager *RuleGen) *DNSPoller {
 	}
 
 	var historyCache *DNSCache
-	if config.MaxIPsPerHost != 0 {
-		historyCache = NewDNSCacheWithLimit(config.MaxIPsPerHost)
-	} else {
-		historyCache = NewDNSCache()
-	}
+	historyCache = NewDNSCacheWithLimit(config.MinTTL, config.MaxIPsPerHost)
 
 	return &DNSPoller{
 		config:      config,

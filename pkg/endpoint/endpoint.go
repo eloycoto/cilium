@@ -407,10 +407,12 @@ func (e *Endpoint) WaitForProxyCompletions(proxyWaitGroup *completion.WaitGroup)
 // NewEndpointWithState creates a new endpoint useful for testing purposes
 func NewEndpointWithState(ID uint16, state string) *Endpoint {
 	ep := &Endpoint{
-		ID:            ID,
-		OpLabels:      pkgLabels.NewOpLabels(),
-		Status:        NewEndpointStatus(),
-		DNSHistory:    fqdn.NewDNSCacheWithLimit(option.Config.ToFQDNsMaxIPsPerHost),
+		ID:       ID,
+		OpLabels: pkgLabels.NewOpLabels(),
+		Status:   NewEndpointStatus(),
+		DNSHistory: fqdn.NewDNSCacheWithLimit(
+			option.Config.ToFQDNsMinTTL,
+			option.Config.ToFQDNsMaxIPsPerHost),
 		state:         state,
 		hasBPFProgram: make(chan struct{}, 0),
 		controllers:   controller.NewManager(),
@@ -442,13 +444,15 @@ func NewEndpointFromChangeModel(base *models.EndpointChangeRequest) (*Endpoint, 
 		DatapathMapID:    int(base.DatapathMapID),
 		IfIndex:          int(base.InterfaceIndex),
 		OpLabels:         pkgLabels.NewOpLabels(),
-		DNSHistory:       fqdn.NewDNSCacheWithLimit(option.Config.ToFQDNsMaxIPsPerHost),
-		state:            "",
-		Status:           NewEndpointStatus(),
-		hasBPFProgram:    make(chan struct{}, 0),
-		desiredPolicy:    &policy.EndpointPolicy{},
-		realizedPolicy:   &policy.EndpointPolicy{},
-		controllers:      controller.NewManager(),
+		DNSHistory: fqdn.NewDNSCacheWithLimit(
+			option.Config.ToFQDNsMinTTL,
+			option.Config.ToFQDNsMaxIPsPerHost),
+		state:          "",
+		Status:         NewEndpointStatus(),
+		hasBPFProgram:  make(chan struct{}, 0),
+		desiredPolicy:  &policy.EndpointPolicy{},
+		realizedPolicy: &policy.EndpointPolicy{},
+		controllers:    controller.NewManager(),
 	}
 	ep.UpdateLogger(nil)
 
@@ -1039,8 +1043,10 @@ func ParseEndpoint(strEp string) (*Endpoint, error) {
 		return nil, fmt.Errorf("invalid format %q. Should contain a single ':'", strEp)
 	}
 	ep := Endpoint{
-		OpLabels:   pkgLabels.NewOpLabels(),
-		DNSHistory: fqdn.NewDNSCacheWithLimit(option.Config.ToFQDNsMaxIPsPerHost),
+		OpLabels: pkgLabels.NewOpLabels(),
+		DNSHistory: fqdn.NewDNSCacheWithLimit(
+			option.Config.ToFQDNsMinTTL,
+			option.Config.ToFQDNsMaxIPsPerHost),
 	}
 	if err := parseBase64ToEndpoint(strEpSlice[1], &ep); err != nil {
 		return nil, fmt.Errorf("failed to parse base64toendpoint: %s", err)

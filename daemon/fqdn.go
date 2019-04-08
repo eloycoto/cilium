@@ -70,7 +70,7 @@ func (d *Daemon) bootstrapFQDN(restoredEndpoints *endpointRestoreState, preCache
 	cfg := fqdn.Config{
 		MinTTL:         option.Config.ToFQDNsMinTTL,
 		MaxIPsPerHost:  option.Config.ToFQDNsMaxIPsPerHost,
-		Cache:          fqdn.DefaultDNSCache,
+		Cache:          fqdn.NewDNSCache(option.Config.ToFQDNsMinTTL),
 		LookupDNSNames: fqdn.DNSLookupDefaultResolver,
 		AddGeneratedRules: func(generatedRules []*policyApi.Rule) error {
 			// Insert the new rules into the policy repository. We need them to
@@ -576,7 +576,7 @@ func readPreCache(preCachePath string) (cache *fqdn.DNSCache, err error) {
 		return nil, err
 	}
 
-	cache = fqdn.NewDNSCache() // no per-host limit here
+	cache = fqdn.NewDNSCache(0) // no per-host limit here
 	if err = cache.UnmarshalJSON(data); err != nil {
 		return nil, err
 	}

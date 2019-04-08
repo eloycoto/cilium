@@ -26,10 +26,10 @@ import (
 	"github.com/cilium/cilium/pkg/lock"
 )
 
-// DefaultDNSCache is a global, shared, DNS cache. It is the default cache used
-// by DNSPoller instances, unless initialized to use another.
-// Note: The DNSCache type returns all DNS information, regardless of source.
-var DefaultDNSCache = NewDNSCache()
+// // DefaultDNSCache is a global, shared, DNS cache. It is the default cache used
+// // by DNSPoller instances, unless initialized to use another.
+// // Note: The DNSCache type returns all DNS information, regardless of source.
+// var DefaultDNSCache = NewDNSCache()
 
 // cacheEntry objects hold data passed in via DNSCache.Update, nominally
 // equating to a DNS lookup. They are internal to DNSCache and should not be
@@ -127,6 +127,10 @@ type DNSCache struct {
 	// otherwise this map will grow forever.
 	cleanup map[int64][]string
 
+	// minTTL is the minimun TTL allowed in the cache. If the number inserted
+	// is lower, this TTL will be set.
+	minTTL int
+
 	// overLimit is a set of DNS names that were over the per-host configured
 	// limit when they received an update. The excess IPs will be removed when
 	// cleanupOverLimitEntries is called, but will continue to be returned by
@@ -140,7 +144,7 @@ type DNSCache struct {
 }
 
 // NewDNSCache returns an initialized DNSCache
-func NewDNSCache() *DNSCache {
+func NewDNSCache(minTTL int) *DNSCache {
 	c := &DNSCache{
 		forward:      make(map[string]ipEntries),
 		reverse:      make(map[string]nameEntries),
@@ -148,14 +152,15 @@ func NewDNSCache() *DNSCache {
 		cleanup:      map[int64][]string{},
 		overLimit:    map[string]bool{},
 		perHostLimit: 0,
+		minTTL:       minTTL,
 	}
 	return c
 }
 
 // NewDNSCache returns an initialized DNSCache and set the max host limit to
 // the given argument
-func NewDNSCacheWithLimit(limit int) *DNSCache {
-	c := NewDNSCache()
+func NewDNSCacheWithLimit(minTTL int, limit int) *DNSCache {
+	c := NewDNSCache(minTTL)
 	c.perHostLimit = limit
 	return c
 }
